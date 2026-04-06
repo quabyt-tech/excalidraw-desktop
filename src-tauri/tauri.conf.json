@@ -1,7 +1,7 @@
 {
   "productName": "Excalidraw Desktop",
   "version": "0.1.0",
-  "identifier": "com.excalidraw-desktop.app",
+  "identifier": "com.excalidraw-desktop.dev",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",

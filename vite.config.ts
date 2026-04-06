@@ -1,7 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { normalizePath } from "vite";
 import path from "path";
+
+const excalidrawAssetsDir = normalizePath(
+  path.resolve(__dirname, "node_modules/@excalidraw/excalidraw/dist/prod")
+);
 
 export default defineConfig({
   plugins: [
@@ -9,10 +14,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: path.resolve(
-            __dirname,
-            "node_modules/@excalidraw/excalidraw/dist/prod/*"
-          ),
+          src: excalidrawAssetsDir + "/**/*",
           dest: "excalidraw-assets",
         },
       ],
