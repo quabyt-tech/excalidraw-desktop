@@ -47,41 +47,51 @@ export default function App() {
   const handleSave = useCallback(async () => {
     if (!excalidrawAPI) return;
 
-    const elements = excalidrawAPI.getSceneElements();
-    const appState = excalidrawAPI.getAppState();
-    const files = excalidrawAPI.getFiles();
-    const data = serializeAsJSON(elements, appState, files, "local");
+    try {
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      const data = serializeAsJSON(elements, appState, files, "local");
 
-    let filePath = currentFileRef.current;
-    if (!filePath) {
-      const selected = await save({
-        filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
-      });
-      if (!selected) return;
-      filePath = selected;
-      currentFileRef.current = filePath;
+      let filePath = currentFileRef.current;
+      if (!filePath) {
+        const selected = await save({
+          defaultPath: "drawing.excalidraw",
+          filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
+        });
+        if (!selected) return;
+        filePath = selected;
+        currentFileRef.current = filePath;
+      }
+
+      await writeTextFile(filePath, data);
+    } catch (err) {
+      console.error("Save failed:", err);
     }
-
-    await writeTextFile(filePath, data);
   }, [excalidrawAPI]);
 
   const handleOpen = useCallback(async () => {
     if (!excalidrawAPI) return;
 
-    const selected = await open({
-      filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
-      multiple: false,
-    });
-    if (!selected) return;
+    try {
+      const selected = await open({
+        filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
+        multiple: false,
+      });
+      if (!selected) return;
 
-    const content = await readTextFile(selected);
-    const parsed = JSON.parse(content);
+      const filePath = typeof selected === "string" ? selected : selected;
+      const content = await readTextFile(filePath);
+      const parsed = JSON.parse(content);
 
-    excalidrawAPI.updateScene({
-      elements: parsed.elements,
-      appState: parsed.appState,
-    });
-    currentFileRef.current = selected;
+      excalidrawAPI.updateScene({
+        elements: parsed.elements,
+        appState: parsed.appState,
+      });
+      currentFileRef.current = filePath;
+    } catch (err) {
+      console.error("Open failed:", err);
+    }
   }, [excalidrawAPI]);
 
   const handleLinkOpen = useCallback(

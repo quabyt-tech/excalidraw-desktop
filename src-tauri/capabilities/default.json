@@ -15,6 +15,10 @@
     "fs:default",
     "fs:allow-read",
     "fs:allow-write",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "**" }]
+    },
     "opener:default",
     "opener:allow-open-url"
   ]
