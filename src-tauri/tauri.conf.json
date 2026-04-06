@@ -1,0 +1,61 @@
+{
+  "productName": "Excalidraw Desktop",
+  "version": "0.1.0",
+  "identifier": "com.excalidraw-desktop.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Excalidraw Desktop",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "dmg", "app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["excalidraw"],
+        "mimeType": "application/json",
+        "description": "Excalidraw Drawing"
+      }
+    ],
+    "shortDescription": "A lightweight desktop app for Excalidraw",
+    "longDescription": "Excalidraw Desktop is a native wrapper around Excalidraw, the virtual whiteboard for sketching hand-drawn like diagrams."
+  },
+  "plugins": {}
+}
