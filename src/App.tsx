@@ -11,7 +11,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import Titlebar from "./Titlebar";
 
-window.EXCALIDRAW_ASSET_PATH = window.location.origin + "/";
+window.EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
 
 export default function App() {
   const [mounted, setMounted] = useState(false);

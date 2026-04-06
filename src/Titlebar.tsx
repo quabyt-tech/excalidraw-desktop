@@ -1,18 +1,9 @@
-import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { platform } from "@tauri-apps/plugin-os";
 
 const appWindow = getCurrentWindow();
+const isMac = navigator.userAgent.includes("Mac");
 
 export default function Titlebar() {
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setIsMac(platform() === "macos");
-  }, []);
-
-  // On macOS, native traffic lights are shown via titleBarStyle: "overlay".
-  // We just need a drag region with left padding to avoid overlapping them.
   if (isMac) {
     return (
       <div data-tauri-drag-region className="titlebar titlebar-mac">
