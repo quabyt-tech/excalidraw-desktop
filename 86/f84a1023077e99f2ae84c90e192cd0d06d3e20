@@ -1,0 +1,45 @@
+src-tauri/Cargo.toml
+  s_fe5542b1f38c2f::t_28619c5692fb06 3
+src-tauri/tauri.conf.json
+  s_fe5542b1f38c2f::t_28619c5692fb06 3
+  s_fe5542b1f38c2f::t_9676560633a3ac 31
+src-tauri/gen/schemas/capabilities.json
+  s_fe5542b1f38c2f::t_15dbb554cc41d1 1
+package.json
+  s_fe5542b1f38c2f::t_28619c5692fb06 4
+src/App.tsx
+  s_fe5542b1f38c2f::t_db1e48bd79393e 220-226
+  s_fe5542b1f38c2f::t_165531f9007d79 311
+  s_fe5542b1f38c2f::t_fa054232366725 188,191-195,200
+  s_fe5542b1f38c2f::t_fbbb642cf90029 313-319
+  s_fe5542b1f38c2f::t_172b470e39906a 153,162
+  s_fe5542b1f38c2f::t_0d3b16d7e6f57b 11-12
+  s_fe5542b1f38c2f::t_4df97f277c2c89 182-184
+  s_fe5542b1f38c2f::t_1a9fc021aec92a 202-215
+  s_fe5542b1f38c2f::t_842aaef94c8ebc 50-71
+  s_fe5542b1f38c2f::t_c4aa6ebe9afa02 201
+src-tauri/Cargo.lock
+  s_fe5542b1f38c2f::t_dbc4c955a7d962 991
+README.md
+  s_fe5542b1f38c2f::t_57ce068a1f7f49 9,11,13
+src-tauri/capabilities/default.json
+  s_fe5542b1f38c2f::t_1783fb745049ed 11,17,25-30
+src-tauri/src/lib.rs
+  s_fe5542b1f38c2f::t_77a00505ee2004 43-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "86f84a1023077e99f2ae84c90e192cd0d06d3e20",
+  "prompts": {},
+  "sessions": {
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
