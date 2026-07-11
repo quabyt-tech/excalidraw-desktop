@@ -1,0 +1,23 @@
+README.md
+  s_fe5542b1f38c2f::t_75f25be4eea4d3 23-25
+  s_fe5542b1f38c2f::t_72e6452819728f 5-22
+  s_fe5542b1f38c2f::t_6afb3c10413515 31,48,50-54
+.github/workflows/ci.yml
+  s_fe5542b1f38c2f::t_ad63b726c45476 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "76e44f6e6de03e117e2768202aaa791ee011bc47",
+  "prompts": {},
+  "sessions": {
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
