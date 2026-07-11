@@ -40,8 +40,8 @@ pub fn run() {
             let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
             window.set_icon(icon)?;
 
-            // Windows: hide native decorations, we use a custom titlebar
-            #[cfg(target_os = "windows")]
+            // Windows/Linux: hide native decorations, we use a custom titlebar
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
             window.set_decorations(false)?;
 
             // macOS: use overlay titlebar with hidden title for native traffic lights

@@ -6,11 +6,11 @@ A lightweight desktop app for [Excalidraw](https://excalidraw.com/) built with [
 
 Download the installer for your platform from [Releases](https://github.com/quabyt-tech/excalidraw-desktop/releases):
 
-- **Windows**: `.exe` (NSIS) or `.msi`
+- **Windows**: `.exe` installer
 - **macOS**: `.dmg` (Apple Silicon and Intel)
-- **Linux**: `.deb`, `.rpm`, or `.AppImage`
+- **Linux**: `.deb` (Debian/Ubuntu), `.rpm` (Fedora/openSUSE), or `.AppImage` (any distro, self-updating)
 
-No other dependencies needed — the app uses the OS webview (WebView2 on Windows is installed automatically if missing).
+No other dependencies needed, the app uses the OS webview (WebView2 on Windows is installed automatically if missing).
 
 ## Features
 

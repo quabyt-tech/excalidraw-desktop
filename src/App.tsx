@@ -8,7 +8,8 @@ import {
 } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { open, save, ask } from "@tauri-apps/plugin-dialog";
+import { open, save, ask, confirm } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { readTextFile, writeTextFile, BaseDirectory } from "@tauri-apps/plugin-fs";
@@ -45,6 +46,28 @@ export default function App() {
     savedVersionRef.current = getSceneVersion(elements);
     setDirty(false);
   };
+
+  const hasUnsavedChanges = () => {
+    const api = apiRef.current;
+    return (
+      !!api && getSceneVersion(api.getSceneElements()) !== savedVersionRef.current
+    );
+  };
+
+  // Warn before closing with unsaved changes (covers titlebar X, Alt+F4)
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
+      if (!hasUnsavedChanges()) return;
+      const closeAnyway = await confirm(
+        "You have unsaved changes. Close without saving?",
+        { title: "Unsaved changes", kind: "warning", okLabel: "Close anyway" }
+      );
+      if (!closeAnyway) event.preventDefault();
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   // Deep link from libraries.excalidraw.com: excalidraw-desktop://library#addLibrary=<url>
   const pendingLibraryUrlRef = useRef<string | null>(null);
@@ -127,7 +150,7 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  const handleSave = useCallback(async () => {
+  const doSave = useCallback(async (forceDialog: boolean) => {
     const api = apiRef.current;
     if (!api) return;
 
@@ -136,7 +159,7 @@ export default function App() {
     const files = api.getFiles();
     const json = serializeAsJSON(elements, appState, files, "local");
 
-    let filePath = currentFileRef.current;
+    let filePath = forceDialog ? null : currentFileRef.current;
     if (!filePath) {
       const selected = await save({
         filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
@@ -156,22 +179,51 @@ export default function App() {
     }
   }, []);
 
+  const handleSave = useCallback(() => doSave(false), [doSave]);
+  const handleSaveAs = useCallback(() => doSave(true), [doSave]);
+
   // Intercept Ctrl+S before Excalidraw can handle it
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         e.stopPropagation();
-        handleSave();
+        if (e.shiftKey) {
+          handleSaveAs();
+        } else {
+          handleSave();
+        }
       }
     };
     document.addEventListener("keydown", handler, true);
     return () => document.removeEventListener("keydown", handler, true);
-  }, [handleSave]);
+  }, [handleSave, handleSaveAs]);
+
+  const handleNew = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) return;
+    if (hasUnsavedChanges()) {
+      const discard = await confirm(
+        "You have unsaved changes. Discard them and start a new file?",
+        { title: "Unsaved changes", kind: "warning", okLabel: "Discard" }
+      );
+      if (!discard) return;
+    }
+    api.resetScene();
+    setFile(null);
+    markSaved(api.getSceneElements());
+  }, []);
 
   const handleOpen = useCallback(async () => {
     const api = apiRef.current;
     if (!api) return;
+    if (hasUnsavedChanges()) {
+      const discard = await confirm(
+        "You have unsaved changes. Discard them and open another file?",
+        { title: "Unsaved changes", kind: "warning", okLabel: "Discard" }
+      );
+      if (!discard) return;
+    }
     try {
       const selected = await open({
         filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
@@ -256,9 +308,16 @@ export default function App() {
           }}
         >
         <MainMenu>
+          <MainMenu.Item onSelect={() => setTimeout(handleNew, 100)}>New File</MainMenu.Item>
           <MainMenu.Item onSelect={() => setTimeout(handleOpen, 100)}>Open File...</MainMenu.Item>
+          <MainMenu.Item onSelect={() => setTimeout(handleSave, 100)}>Save</MainMenu.Item>
+          <MainMenu.Item onSelect={() => setTimeout(handleSaveAs, 100)}>Save As...</MainMenu.Item>
           <MainMenu.Separator />
-          <MainMenu.DefaultItems.ClearCanvas />
+          <MainMenu.DefaultItems.SaveAsImage />
+          <MainMenu.DefaultItems.CommandPalette />
+          <MainMenu.DefaultItems.SearchMenu />
+          <MainMenu.DefaultItems.Help />
+          <MainMenu.Separator />
           <MainMenu.DefaultItems.ChangeCanvasBackground />
         </MainMenu>
         </Excalidraw>
