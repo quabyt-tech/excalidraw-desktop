@@ -23,8 +23,10 @@ pub fn run() {
             // Ensure app data dir exists (library.json lives there)
             std::fs::create_dir_all(app.path().app_data_dir()?)?;
 
-            // Deep links register on install in production; register at runtime for dev
-            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            // Linux has no install-time protocol registration (.desktop based); do it at runtime.
+            // Windows/macOS register via the installer — registering here in dev would
+            // hijack the scheme from the installed app every `tauri dev` run.
+            #[cfg(target_os = "linux")]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 app.deep_link().register_all()?;
