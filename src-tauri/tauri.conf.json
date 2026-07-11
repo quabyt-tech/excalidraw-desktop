@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "publisher": "Quabyt",
+    "createUpdaterArtifacts": true,
     "targets": ["nsis", "msi", "dmg", "app", "deb", "rpm", "appimage"],
     "icon": [
       "icons/32x32.png",
@@ -63,6 +64,12 @@
       "desktop": {
         "schemes": ["excalidraw-desktop"]
       }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4Rjg1NDUwQkUzNDlGRTkKUldUcG56UytVRlQ0U0ZSb3dMTDAvOGhnbXYwV0VBRlJCZHhudk84NTE3dHJrYzlQQWZIZi9EUlgK",
+      "endpoints": [
+        "https://github.com/quabyt-tech/excalidraw-desktop/releases/latest/download/latest.json"
+      ]
     }
   }
 }

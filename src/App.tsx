@@ -8,7 +8,9 @@ import {
 } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { open, save, ask } from "@tauri-apps/plugin-dialog";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { readTextFile, writeTextFile, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
@@ -84,6 +86,25 @@ export default function App() {
   };
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Check for app updates on startup (no-op in dev; endpoint only has release builds)
+  useEffect(() => {
+    (async () => {
+      try {
+        const update = await check();
+        if (!update) return;
+        const yes = await ask(
+          `Version ${update.version} is available. Download and install now?`,
+          { title: "Update available", kind: "info" }
+        );
+        if (!yes) return;
+        await update.downloadAndInstall();
+        await relaunch();
+      } catch (err) {
+        console.warn("Update check failed:", err);
+      }
+    })();
   }, []);
 
   // Intercept external link clicks and open in default browser
