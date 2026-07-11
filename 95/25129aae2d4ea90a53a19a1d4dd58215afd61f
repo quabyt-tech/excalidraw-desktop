@@ -1,0 +1,19 @@
+src-tauri/tauri.conf.json
+  s_fe5542b1f38c2f::t_d015d6c3b86f61 4,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "9525129aae2d4ea90a53a19a1d4dd58215afd61f",
+  "prompts": {},
+  "sessions": {
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "unknown"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
