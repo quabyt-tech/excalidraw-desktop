@@ -1,6 +1,6 @@
 # Excalidraw Desktop App
 
-A lightweight desktop app for [Excalidraw](https://excalidraw.com/) built with Tauri v2 + React.
+A lightweight desktop app for [Excalidraw](https://excalidraw.com/) built with [Tauri](https://tauri.app/) + React.
 
 ## Install
 
@@ -15,9 +15,13 @@ No other dependencies needed — the app uses the OS webview (WebView2 on Window
 ## Features
 
 - Full Excalidraw editor experience
-- Native file open/save dialogs (.excalidraw files), unsaved-changes indicator
+- Native file open/save dialogs (.excalidraw files) with Ctrl+S/Cmd+S support and an unsaved-changes indicator
+- Opens `.excalidraw` files directly from your file manager (registered file association)
 - Install libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com) straight into the app; your library persists across restarts
 - Dark/light theme toggle
+- Single-instance app — relaunching focuses the existing window instead of opening a duplicate
+- External links open in your default browser, not inside the app
+- Cross-platform: Windows, macOS, and Linux
 - Tiny footprint compared to Electron
 
 ## Developing
