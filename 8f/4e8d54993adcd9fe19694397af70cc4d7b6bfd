@@ -1,0 +1,47 @@
+bun.lock
+  s_fe5542b1f38c2f::t_6c9b3c72223bf4 10,285-286,759-760
+package.json
+  s_fe5542b1f38c2f::t_813e607b0b1587 4,15
+src-tauri/Cargo.toml
+  s_fe5542b1f38c2f::t_88d15b3aa64c83 3,14,18,21-23
+.github/workflows/release.yml
+  s_fe5542b1f38c2f::t_74eaf30c832963 8-10,23-24,39-44,59-73
+src-tauri/Cargo.lock
+  s_fe5542b1f38c2f::t_c23935575e5f64 328-333,484-503,593-598,814-822,971,977,981,1492-1497,1672,1790-1802,2172-2181,2197,2430-2439,2752-2764,2887-2892,3137-3146,3775,3843,3890-3910,3975-3990,4196-4204,4439,5016-5026
+src-tauri/capabilities/default.json
+  s_fe5542b1f38c2f::t_65d3e45a586d4c 16-17,23-24
+src-tauri/gen/schemas/acl-manifests.json
+  s_fe5542b1f38c2f::t_cd164b1ec4d054 1
+src-tauri/gen/schemas/capabilities.json
+  s_fe5542b1f38c2f::t_939364c06dd25e 1
+src-tauri/gen/schemas/desktop-schema.json
+  s_fe5542b1f38c2f::t_8aedc11a23d5b7 4139-4192
+src-tauri/gen/schemas/windows-schema.json
+  s_fe5542b1f38c2f::t_319ccdc143d816 4139-4192
+src-tauri/src/lib.rs
+  s_fe5542b1f38c2f::t_6f64bdf65a0605 5-18,23-32,35-38
+src-tauri/tauri.conf.json
+  s_fe5542b1f38c2f::t_da812230672a81 3,29,60-66
+src/App.tsx
+  s_fe5542b1f38c2f::t_e3c4c6062b8a09 5,7,11-12,14,17-28,36,38-72,74-84,110-111,113-127,129-131,134,136,138-149,151-153,162-167,171,186-193,196,199-223,226,228,233,238
+src/Titlebar.tsx
+  s_fe5542b1f38c2f::t_8e5b6d36c86cc1 6-65,69,71-75,83,85,88-89
+src/styles.css
+  s_fe5542b1f38c2f::t_079fbef96a8d6b 26,96-104,109-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "8f4e8d54993adcd9fe19694397af70cc4d7b6bfd",
+  "prompts": {},
+  "sessions": {
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
