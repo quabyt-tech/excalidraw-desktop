@@ -1,0 +1,45 @@
+src-tauri/Cargo.toml
+  s_fe5542b1f38c2f::t_8921958ee8d4d0 21-22
+src-tauri/gen/schemas/windows-schema.json
+  s_fe5542b1f38c2f::t_35b4326668e38b 6058-6141
+src/App.tsx
+  s_fe5542b1f38c2f::t_dacedcad6223ea 11-13
+  s_fe5542b1f38c2f::t_a4cc8a0a7ef0f6 91-109
+package.json
+  s_fe5542b1f38c2f::t_8921958ee8d4d0 19-20
+src-tauri/tauri.conf.json
+  s_fe5542b1f38c2f::t_5cab55a5e0d74e 30
+  s_fe5542b1f38c2f::t_b30b9f24a20025 67-72
+src-tauri/gen/schemas/desktop-schema.json
+  s_fe5542b1f38c2f::t_35b4326668e38b 6058-6141
+src-tauri/gen/schemas/acl-manifests.json
+  s_fe5542b1f38c2f::t_35b4326668e38b 1
+src-tauri/gen/schemas/capabilities.json
+  s_fe5542b1f38c2f::t_35b4326668e38b 1
+bun.lock
+  s_fe5542b1f38c2f::t_f4d5a9b9889f9e 14-15,295-298,767-770
+src-tauri/Cargo.lock
+  s_fe5542b1f38c2f::t_9c30049b45fb5f 50-58,712-722,1001,1003,1031-1040,1650-1664,2198-2203,2421-2432,2489-2494,2521-2534,3178,3184-3186,3191,3227-3240,3279-3351,3367-3375,3433-3455,3846-3851,3967-3977,4201-4210,4227-4259,4498-4507,4812-4817,5116-5124,5366-5374,5802-5811,5937-5942,5976-5987
+.github/workflows/release.yml
+  s_fe5542b1f38c2f::t_b9d292c8b33e11 52-53
+src-tauri/capabilities/default.json
+  s_fe5542b1f38c2f::t_1562c5c9080d4c 15-17
+src-tauri/src/lib.rs
+  s_fe5542b1f38c2f::t_edb41ca55931a8 18-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "e4a4175b8b2bfde1a6d569b7f426fdd8b8577d6d",
+  "prompts": {},
+  "sessions": {
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
