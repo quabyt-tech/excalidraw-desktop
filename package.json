@@ -1,7 +1,7 @@
 {
   "name": "excalidraw-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-deep-link": "^2.4.9",
     "@tauri-apps/plugin-dialog": "^2.0.0",
     "@tauri-apps/plugin-fs": "^2.0.0",
     "@tauri-apps/plugin-opener": "^2.0.0",

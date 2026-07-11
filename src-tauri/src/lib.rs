@@ -2,12 +2,39 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // Must be registered before deep-link so the running instance receives the URL
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Ensure app data dir exists (library.json lives there)
+            std::fs::create_dir_all(app.path().app_data_dir()?)?;
+
+            // Deep links register on install in production; register at runtime for dev
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
+
             let window = app.get_webview_window("main").unwrap();
+
+            // Set the window icon (needed for taskbar icon in dev mode)
+            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+            window.set_icon(icon)?;
 
             // Windows: hide native decorations, we use a custom titlebar
             #[cfg(target_os = "windows")]

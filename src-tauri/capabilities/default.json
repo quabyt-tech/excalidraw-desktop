@@ -13,13 +13,14 @@
     "dialog:allow-save",
     "dialog:allow-open",
     "fs:default",
-    "fs:allow-read",
-    "fs:allow-write",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
     {
       "identifier": "fs:scope",
       "allow": [{ "path": "**" }]
     },
     "opener:default",
-    "opener:allow-open-url"
+    "opener:allow-open-url",
+    "deep-link:default"
   ]
 }

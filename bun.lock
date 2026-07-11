@@ -7,6 +7,7 @@
       "dependencies": {
         "@excalidraw/excalidraw": "^0.18.0",
         "@tauri-apps/api": "^2.0.0",
+        "@tauri-apps/plugin-deep-link": "^2.4.9",
         "@tauri-apps/plugin-dialog": "^2.0.0",
         "@tauri-apps/plugin-fs": "^2.0.0",
         "@tauri-apps/plugin-opener": "^2.0.0",
@@ -280,6 +281,8 @@
     "@tauri-apps/cli-win32-ia32-msvc": ["@tauri-apps/cli-win32-ia32-msvc@2.10.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-gXyxgEzsFegmnWywYU5pEBURkcFN/Oo45EAwvZrHMh+zUSEAvO5E8TXsgPADYm31d1u7OQU3O3HsYfVBf2moHw=="],
 
     "@tauri-apps/cli-win32-x64-msvc": ["@tauri-apps/cli-win32-x64-msvc@2.10.1", "", { "os": "win32", "cpu": "x64" }, "sha512-6Cn7YpPFwzChy0ERz6djKEmUehWrYlM+xTaNzGPgZocw3BD7OfwfWHKVWxXzdjEW2KfKkHddfdxK1XXTYqBRLg=="],
+
+    "@tauri-apps/plugin-deep-link": ["@tauri-apps/plugin-deep-link@2.4.9", "", { "dependencies": { "@tauri-apps/api": "^2.11.0" } }, "sha512-u0SKOUHnJ1wqeqXsDFq2+kASCBj9xxbG0g9XZWPy9SOmU4wXtp6b/wiYpm6oH6/5fBTQsLqnLhIvqLBRpgHJlA=="],
 
     "@tauri-apps/plugin-dialog": ["@tauri-apps/plugin-dialog@2.7.0", "", { "dependencies": { "@tauri-apps/api": "^2.10.1" } }, "sha512-4nS/hfGMGCXiAS3LtVjH9AgsSAPJeG/7R+q8agTFqytjnMa4Zq95Bq8WzVDkckpanX+yyRHXnRtrKXkANKDHvw=="],
 
@@ -752,6 +755,8 @@
     "@radix-ui/react-tabs/@radix-ui/react-primitive": ["@radix-ui/react-primitive@1.0.1", "", { "dependencies": { "@babel/runtime": "^7.13.10", "@radix-ui/react-slot": "1.0.1" }, "peerDependencies": { "react": "^16.8 || ^17.0 || ^18.0", "react-dom": "^16.8 || ^17.0 || ^18.0" } }, "sha512-fHbmislWVkZaIdeF6GZxF0A/NH/3BjrGIYj+Ae6eTmTCr7EB0RQAAVEiqsXK6p3/JcRqVSBQoceZroj30Jj3XA=="],
 
     "@radix-ui/react-tabs/@radix-ui/react-use-controllable-state": ["@radix-ui/react-use-controllable-state@1.0.0", "", { "dependencies": { "@babel/runtime": "^7.13.10", "@radix-ui/react-use-callback-ref": "1.0.0" }, "peerDependencies": { "react": "^16.8 || ^17.0 || ^18.0" } }, "sha512-FohDoZvk3mEXh9AWAVyRTYR4Sq7/gavuofglmiXB2g1aKyboUD4YtgWxKj8O5n+Uak52gXQ4wKz5IFST4vtJHg=="],
+
+    "@tauri-apps/plugin-deep-link/@tauri-apps/api": ["@tauri-apps/api@2.11.1", "", {}, "sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA=="],
 
     "anymatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 
