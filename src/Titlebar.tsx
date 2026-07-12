@@ -9,6 +9,59 @@ interface TitlebarProps {
   currentFile: string | null;
   onSave: () => void;
   dirty: boolean;
+  autosave: boolean;
+  onToggleAutosave: () => void;
+  onToggleSidebar: () => void;
+  onToggleMenu: () => void;
+}
+
+function MenuButton({ onToggle }: { onToggle: () => void }) {
+  return (
+    <button
+      className="titlebar-btn theme-toggle-btn"
+      onClick={onToggle}
+      title="Menu"
+      aria-label="Menu"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <line x1="4" y1="6" x2="20" y2="6" />
+        <line x1="4" y1="12" x2="20" y2="12" />
+        <line x1="4" y1="18" x2="20" y2="18" />
+      </svg>
+    </button>
+  );
+}
+
+function SidebarToggle({ onToggle }: { onToggle: () => void }) {
+  return (
+    <button
+      className="titlebar-btn theme-toggle-btn"
+      onClick={onToggle}
+      title="Toggle folder sidebar"
+      aria-label="Toggle folder sidebar"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <line x1="9" y1="3" x2="9" y2="21" />
+      </svg>
+    </button>
+  );
+}
+
+function AutosaveToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      className="autosave-toggle"
+      onClick={onToggle}
+      aria-pressed={on}
+      title={`Autosave is ${on ? "on" : "off"}`}
+    >
+      <span className="autosave-label">Autosave</span>
+      <span className={`autosave-pill${on ? " on" : ""}`}>
+        <span className="autosave-knob" />
+      </span>
+    </button>
+  );
 }
 
 function SaveButton({ onSave, dirty }: { onSave: () => void; dirty: boolean }) {
@@ -58,7 +111,7 @@ function ThemeToggle({ theme, onToggleTheme }: { theme: "light" | "dark"; onTogg
   );
 }
 
-export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, dirty }: TitlebarProps) {
+export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, dirty, autosave, onToggleAutosave, onToggleSidebar, onToggleMenu }: TitlebarProps) {
   const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : null;
   const title = fileName
     ? `Excalidraw Desktop - ${dirty ? "● " : ""}${fileName}`
@@ -67,10 +120,13 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
     return (
       <div data-tauri-drag-region className="titlebar titlebar-mac">
         <img src="/icon.png" alt="" className="titlebar-icon" draggable={false} />
+        <MenuButton onToggle={onToggleMenu} />
+        <SidebarToggle onToggle={onToggleSidebar} />
         <div className="titlebar-title" data-tauri-drag-region>
           {title}
         </div>
         <div className="titlebar-actions">
+          <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
           <SaveButton onSave={onSave} dirty={dirty} />
           <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         </div>
@@ -81,10 +137,13 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
   return (
     <div data-tauri-drag-region className="titlebar">
       <img src="/icon.png" alt="" className="titlebar-icon" draggable={false} />
+      <MenuButton onToggle={onToggleMenu} />
+      <SidebarToggle onToggle={onToggleSidebar} />
       <div className="titlebar-title" data-tauri-drag-region>
         {title}
       </div>
       <div className="titlebar-buttons">
+        <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
         <SaveButton onSave={onSave} dirty={dirty} />
         <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         <button

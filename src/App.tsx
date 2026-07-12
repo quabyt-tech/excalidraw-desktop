@@ -2,7 +2,9 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Excalidraw,
   MainMenu,
+  Sidebar,
   loadFromBlob,
+  loadLibraryFromBlob,
   serializeAsJSON,
   getSceneVersion,
 } from "@excalidraw/excalidraw";
@@ -10,30 +12,265 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import { open, save, ask, confirm } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { readTextFile, writeTextFile, BaseDirectory } from "@tauri-apps/plugin-fs";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  readTextFile,
+  writeTextFile,
+  readDir,
+  exists,
+  rename,
+  mkdir,
+  watch,
+  BaseDirectory,
+} from "@tauri-apps/plugin-fs";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import Titlebar from "./Titlebar";
+import {
+  LibraryPanel,
+  insertLibraryItem,
+  prettyLibName,
+  emptySections,
+  PERSONAL_ID,
+  type LibrarySection,
+} from "./LibraryPanel";
+import type { LibraryItem } from "@excalidraw/excalidraw/types";
 
-const LIBRARY_FILE = "library.json";
+const LIBRARY_FILE = "library.json"; // pre-0.3.0 flat library, migrated into LIBRARIES_FILE
+const LIBRARIES_FILE = "libraries.json";
+const SETTINGS_FILE = "settings.json";
+const MAX_RECENT = 10;
 
-async function loadStoredLibrary() {
+interface Settings {
+  recentFiles: string[];
+  autosave: boolean;
+  workspaceDir: string | null;
+  lastFile: string | null;
+  showSidebar: boolean;
+}
+const DEFAULT_SETTINGS: Settings = {
+  recentFiles: [],
+  autosave: false,
+  workspaceDir: null,
+  lastFile: null,
+  showSidebar: true,
+};
+
+const normPath = (p: string) => p.replace(/\\/g, "/");
+const parentDir = (p: string) =>
+  p.slice(0, Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")));
+
+interface WsNode {
+  name: string;
+  path: string;
+  dir: boolean;
+  children?: WsNode[];
+}
+
+// ponytail: depth cap 4, hidden dirs skipped
+async function buildTree(dir: string, depth = 0): Promise<WsNode[]> {
+  if (depth > 4) return [];
+  let entries;
   try {
-    return JSON.parse(
+    entries = await readDir(dir);
+  } catch {
+    return [];
+  }
+  const byName = (a: { name: string }, b: { name: string }) =>
+    a.name.localeCompare(b.name);
+  const nodes: WsNode[] = [];
+  for (const e of entries.filter((e) => e.isDirectory && !e.name.startsWith(".")).sort(byName)) {
+    const path = `${dir}/${e.name}`;
+    nodes.push({ name: e.name, path, dir: true, children: await buildTree(path, depth + 1) });
+  }
+  for (const e of entries
+    .filter((e) => e.isFile && e.name.endsWith(".excalidraw"))
+    .sort(byName)) {
+    nodes.push({ name: e.name, path: `${dir}/${e.name}`, dir: false });
+  }
+  return nodes;
+}
+
+const iconProps = {
+  width: 14,
+  height: 14,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+} as const;
+
+const FileIcon = () => (
+  <svg {...iconProps} className="ws-icon ws-icon-file">
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M8 13h2" />
+    <path d="M8 17h5" />
+    <path d="m13.5 12.5 2-2" />
+  </svg>
+);
+
+const FolderIcon = ({ open }: { open: boolean }) =>
+  open ? (
+    <svg {...iconProps} className="ws-icon ws-icon-folder">
+      <path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
+    </svg>
+  ) : (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      className="ws-icon ws-icon-folder"
+    >
+      <path d="M2 5a2 2 0 0 1 2-2h4.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />
+    </svg>
+  );
+
+const FilePlusIcon = () => (
+  <svg {...iconProps}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="12" y1="18" x2="12" y2="12" />
+    <line x1="9" y1="15" x2="15" y2="15" />
+  </svg>
+);
+
+const FolderPlusIcon = () => (
+  <svg {...iconProps}>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    <line x1="12" y1="10" x2="12" y2="16" />
+    <line x1="9" y1="13" x2="15" y2="13" />
+  </svg>
+);
+
+async function loadLibrarySections(): Promise<LibrarySection[]> {
+  try {
+    const sections = JSON.parse(
+      await readTextFile(LIBRARIES_FILE, { baseDir: BaseDirectory.AppData })
+    );
+    if (Array.isArray(sections) && sections.length) return sections;
+  } catch {
+    // no file yet, or corrupt — fall through to migration
+  }
+  try {
+    const items = JSON.parse(
       await readTextFile(LIBRARY_FILE, { baseDir: BaseDirectory.AppData })
     );
+    const sections = emptySections();
+    if (Array.isArray(items)) sections[0].items = items;
+    return sections;
   } catch {
-    return []; // no file yet, or corrupt
+    return emptySections();
   }
+}
+
+async function loadSettings(): Promise<Settings> {
+  try {
+    return {
+      ...DEFAULT_SETTINGS,
+      ...JSON.parse(
+        await readTextFile(SETTINGS_FILE, { baseDir: BaseDirectory.AppData })
+      ),
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function baseName(path: string) {
+  return path.split(/[\\/]/).pop() ?? path;
+}
+
+// Canvas preferences persisted across restarts (the web app keeps these in localStorage too)
+const PREFS_KEY = "canvas-prefs";
+const PREF_KEYS = [
+  "viewBackgroundColor",
+  "gridModeEnabled",
+  "gridStep",
+  "zenModeEnabled",
+  "objectsSnapModeEnabled",
+] as const;
+
+function loadCanvasPrefs(): Record<string, unknown> {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+// "Open Recent ▸" menu row with a hover flyout (Excalidraw's menu API has no submenu).
+// Fixed positioning escapes the menu's scroll container; local state resets when the menu closes.
+function RecentFlyout({
+  files,
+  onOpen,
+}: {
+  files: string[];
+  onOpen: (path: string) => void;
+}) {
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+
+  const show = (e: React.MouseEvent) => {
+    window.clearTimeout(timer.current);
+    const r = e.currentTarget.getBoundingClientRect();
+    setPos({
+      left: r.right + 2,
+      top: Math.min(r.top - 4, window.innerHeight - 300),
+    });
+  };
+  const hideSoon = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setPos(null), 150);
+  };
+  const cancelHide = () => window.clearTimeout(timer.current);
+
+  return (
+    <div
+      className="recent-trigger"
+      onMouseEnter={show}
+      onMouseLeave={hideSoon}
+    >
+      <span>Open Recent</span>
+      <span className="recent-caret">▸</span>
+      {pos && (
+        <div
+          className="recent-flyout"
+          style={pos}
+          onMouseEnter={cancelHide}
+          onMouseLeave={hideSoon}
+        >
+          {files.map((path) => (
+            <button
+              key={path}
+              className="recent-flyout-item"
+              title={path}
+              onClick={() => onOpen(path)}
+            >
+              {baseName(path)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 window.EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
 
 export default function App() {
   const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    localStorage.getItem("theme") === "dark" ? "dark" : "light"
+  );
+  const lastPrefsRef = useRef("");
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
@@ -41,6 +278,169 @@ export default function App() {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [dirty, setDirty] = useState(false);
   const savedVersionRef = useRef(0);
+
+  // Persisted settings (recent files, autosave, workspace)
+  const settingsRef = useRef<Settings>({ ...DEFAULT_SETTINGS });
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
+  const [autosave, setAutosave] = useState(false);
+  const autosaveRef = useRef(false);
+  const [workspaceDir, setWorkspaceDir] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [workspaceTree, setWorkspaceTree] = useState<WsNode[]>([]);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  // Folder targeted by the header new-file/new-folder buttons (click a row to set)
+  const [selectedDir, setSelectedDir] = useState<string | null>(null);
+
+  // Inline rename (mirrored in a ref so Enter+blur don't double-commit)
+  const [renaming, setRenamingState] = useState<{ path: string; value: string; dir?: boolean } | null>(null);
+  const renamingRef = useRef<typeof renaming>(null);
+  const setRenaming = (r: typeof renaming) => {
+    renamingRef.current = r;
+    setRenamingState(r);
+  };
+
+  // Sidebar right-click context menu
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; node: WsNode } | null>(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("click", close);
+    document.addEventListener("contextmenu", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("contextmenu", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [ctxMenu]);
+
+  // Timestamp of our own last write, so file watchers can ignore it
+  const lastWriteRef = useRef(0);
+
+  // ---- Library sections: "Personal" (mirrors Excalidraw's internal library) + one per import
+  const [libSections, setLibSections] = useState<LibrarySection[]>(emptySections);
+  const libSectionsRef = useRef(libSections);
+  const [libDocked, setLibDocked] = useState(true);
+  const libSectionsPromiseRef = useRef<Promise<LibrarySection[]> | null>(null);
+  if (!libSectionsPromiseRef.current) {
+    // Kicked off on first render; initialData below reuses this promise, and our
+    // .then is attached first so the ref is populated before onLibraryChange echoes.
+    libSectionsPromiseRef.current = loadLibrarySections().then((sections) => {
+      libSectionsRef.current = sections;
+      setLibSections(sections);
+      return sections;
+    });
+  }
+
+  const updateLibSections = (
+    mutate: (prev: LibrarySection[]) => LibrarySection[]
+  ) => {
+    const next = mutate(libSectionsRef.current);
+    libSectionsRef.current = next;
+    setLibSections(next);
+    writeTextFile(LIBRARIES_FILE, JSON.stringify(next), {
+      baseDir: BaseDirectory.AppData,
+    }).catch((err) => {
+      console.error("Library persist failed:", err);
+      apiRef.current?.setToast({
+        message: `Could not save library: ${err}`,
+        closable: true,
+      });
+    });
+  };
+
+  // Re-importing a library with the same name replaces it (update-in-place)
+  const addLibrarySection = (name: string, items: LibraryItem[]) => {
+    updateLibSections((prev) => [
+      ...prev.filter(
+        (s) => s.id === PERSONAL_ID || s.name.toLowerCase() !== name.toLowerCase()
+      ),
+      { id: crypto.randomUUID(), name, items },
+    ]);
+    apiRef.current?.toggleSidebar({ name: "libraries", force: true });
+  };
+
+  const removeLibItem = (sectionId: string, itemId: string) => {
+    updateLibSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId
+          ? { ...s, items: s.items.filter((i) => i.id !== itemId) }
+          : s
+      )
+    );
+    if (sectionId === PERSONAL_ID) {
+      const items =
+        libSectionsRef.current.find((s) => s.id === PERSONAL_ID)?.items ?? [];
+      apiRef.current?.updateLibrary({ libraryItems: items });
+    }
+  };
+
+  const removeLibSection = async (sectionId: string) => {
+    const section = libSectionsRef.current.find((s) => s.id === sectionId);
+    if (!section) return;
+    const yes = await confirm(
+      `Remove library "${section.name}" (${section.items.length} items)?`,
+      { title: "Remove library", kind: "warning", okLabel: "Remove" }
+    );
+    if (!yes) return;
+    updateLibSections((prev) => prev.filter((s) => s.id !== sectionId));
+  };
+
+  const handleImportLibraryFile = async () => {
+    const selected = await open({
+      filters: [
+        { name: "Excalidraw library", extensions: ["excalidrawlib"] },
+      ],
+      multiple: false,
+    });
+    if (!selected) return;
+    try {
+      const content = await readTextFile(selected);
+      const items = await loadLibraryFromBlob(new Blob([content]));
+      addLibrarySection(prettyLibName(baseName(selected)), items as LibraryItem[]);
+    } catch (err) {
+      console.error("Library import failed:", err);
+      apiRef.current?.setToast({
+        message: `Library import failed: ${err}`,
+        closable: true,
+      });
+    }
+  };
+
+  const handleBrowseLibraries = () =>
+    openUrl(
+      "https://libraries.excalidraw.com/?target=_blank&useHash=true&version=2&referrer=" +
+        encodeURIComponent("excalidraw-desktop://library")
+    );
+
+  const persistSettings = async (patch: Partial<Settings>) => {
+    settingsRef.current = { ...settingsRef.current, ...patch };
+    try {
+      await writeTextFile(
+        SETTINGS_FILE,
+        JSON.stringify(settingsRef.current, null, 2),
+        { baseDir: BaseDirectory.AppData }
+      );
+    } catch (err) {
+      console.error("Settings persist failed:", err);
+    }
+  };
+
+  const addRecent = (path: string) => {
+    const list = [
+      path,
+      ...settingsRef.current.recentFiles.filter((p) => p !== path),
+    ].slice(0, MAX_RECENT);
+    setRecentFiles(list);
+    persistSettings({ recentFiles: list });
+  };
+
+  const setFile = (path: string | null) => {
+    currentFileRef.current = path;
+    setCurrentFile(path);
+  };
 
   const markSaved = (elements: Parameters<typeof getSceneVersion>[0]) => {
     savedVersionRef.current = getSceneVersion(elements);
@@ -54,7 +454,88 @@ export default function App() {
     );
   };
 
-  // Warn before closing with unsaved changes (covers titlebar X, Alt+F4)
+  const confirmDiscard = async (what: string) => {
+    if (!hasUnsavedChanges()) return true;
+    return confirm(`You have unsaved changes. Discard them and ${what}?`, {
+      title: "Unsaved changes",
+      kind: "warning",
+      okLabel: "Discard",
+    });
+  };
+
+  // Shared loader used by Open dialog, recents, workspace, file manager, reload
+  const loadFile = useCallback(async (filePath: string) => {
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      const content = await readTextFile(filePath);
+      const blob = new Blob([content], { type: "application/json" });
+      const scene = await loadFromBlob(blob, api.getAppState(), null);
+      api.updateScene(scene);
+      if (scene.files) api.addFiles(Object.values(scene.files));
+      api.scrollToContent();
+      setFile(filePath);
+      markSaved(api.getSceneElements());
+      addRecent(filePath);
+      persistSettings({ lastFile: filePath });
+    } catch (err) {
+      console.error("Open failed:", err);
+      api.setToast({ message: `Could not open ${baseName(filePath)}: ${err}`, closable: true });
+    }
+  }, []);
+
+  const openPathGuarded = useCallback(
+    async (filePath: string) => {
+      if (filePath === currentFileRef.current) return;
+      if (!(await confirmDiscard(`open ${baseName(filePath)}`))) return;
+      await loadFile(filePath);
+    },
+    [loadFile]
+  );
+
+  // ---- Startup: settings, launch file (file manager double-click), second-instance opens
+  const pendingOpenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const unlisten = listen<string>("open-file", (event) => {
+      if (apiRef.current) {
+        openPathGuarded(event.payload);
+      } else {
+        pendingOpenRef.current = event.payload;
+      }
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [openPathGuarded]);
+
+  const refreshWorkspace = useCallback(async (dir: string) => {
+    setWorkspaceTree(await buildTree(dir));
+  }, []);
+
+  // Runs once the Excalidraw API is ready
+  const onApiReady = useCallback(async () => {
+    const settings = await loadSettings();
+    settingsRef.current = settings;
+    setRecentFiles(settings.recentFiles);
+    setAutosave(settings.autosave);
+    autosaveRef.current = settings.autosave;
+    setShowSidebar(settings.showSidebar);
+    if (settings.workspaceDir && (await exists(settings.workspaceDir))) {
+      setWorkspaceDir(settings.workspaceDir);
+      refreshWorkspace(settings.workspaceDir);
+    }
+
+    // A file double-clicked in the file manager wins; else reopen where we left off
+    const launchFile =
+      pendingOpenRef.current ?? (await invoke<string | null>("get_launch_file"));
+    pendingOpenRef.current = null;
+    const restore = launchFile ?? settings.lastFile;
+    if (restore && (await exists(restore))) loadFile(restore);
+  }, [loadFile, refreshWorkspace]);
+
+  // ---- Warn before closing with unsaved changes (covers titlebar X, Alt+F4)
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
       if (!hasUnsavedChanges()) return;
@@ -69,7 +550,7 @@ export default function App() {
     };
   }, []);
 
-  // Deep link from libraries.excalidraw.com: excalidraw-desktop://library#addLibrary=<url>
+  // ---- Deep link from libraries.excalidraw.com: excalidraw-desktop://library#addLibrary=<url>
   const pendingLibraryUrlRef = useRef<string | null>(null);
 
   const importLibrary = useCallback(async (deepLink: string) => {
@@ -81,15 +562,16 @@ export default function App() {
     const hash = deepLink.slice(deepLink.indexOf("#") + 1);
     const libraryUrl = new URLSearchParams(hash).get("addLibrary");
     if (!libraryUrl) return;
+    const name = prettyLibName(libraryUrl.split("/").pop() ?? "Library");
     try {
-      const blob = await (await fetch(libraryUrl)).blob();
-      await api.updateLibrary({
-        libraryItems: blob,
-        merge: true,
-        prompt: true,
-        openLibraryMenu: true,
-        defaultStatus: "published",
+      const yes = await ask(`Add the library "${name}"?`, {
+        title: "Add library",
+        kind: "info",
       });
+      if (!yes) return;
+      const blob = await (await fetch(libraryUrl)).blob();
+      const items = await loadLibraryFromBlob(blob);
+      addLibrarySection(name, items as LibraryItem[]);
     } catch (err) {
       console.error("Library import failed:", err);
       api.setToast({ message: `Library import failed: ${err}`, closable: true });
@@ -103,15 +585,7 @@ export default function App() {
     };
   }, [importLibrary]);
 
-  const setFile = (path: string | null) => {
-    currentFileRef.current = path;
-    setCurrentFile(path);
-  };
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Check for app updates on startup (no-op in dev; endpoint only has release builds)
+  // ---- Check for app updates on startup (no-op in dev; endpoint only has release builds)
   useEffect(() => {
     (async () => {
       try {
@@ -130,7 +604,7 @@ export default function App() {
     })();
   }, []);
 
-  // Intercept external link clicks and open in default browser
+  // ---- Intercept external link clicks and open in default browser
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest("a[href]");
@@ -148,8 +622,10 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // ---- Save
   const doSave = useCallback(async (forceDialog: boolean) => {
     const api = apiRef.current;
     if (!api) return;
@@ -171,8 +647,11 @@ export default function App() {
     }
 
     try {
+      lastWriteRef.current = Date.now();
       await writeTextFile(filePath, json);
       markSaved(elements);
+      addRecent(filePath);
+      persistSettings({ lastFile: filePath });
     } catch (err) {
       console.error("Save failed:", err);
       api.setToast({ message: `Save failed: ${err}`, closable: true });
@@ -182,7 +661,244 @@ export default function App() {
   const handleSave = useCallback(() => doSave(false), [doSave]);
   const handleSaveAs = useCallback(() => doSave(true), [doSave]);
 
-  // Intercept Ctrl+S before Excalidraw can handle it
+  // ---- Autosave: save shortly after the scene becomes dirty (needs an open file)
+  useEffect(() => {
+    if (!dirty || !autosave || !currentFileRef.current) return;
+    const timer = setTimeout(() => doSave(false), 2000);
+    return () => clearTimeout(timer);
+  }, [dirty, autosave, doSave]);
+
+  const toggleAutosave = () => {
+    const next = !autosaveRef.current;
+    autosaveRef.current = next;
+    setAutosave(next);
+    persistSettings({ autosave: next });
+  };
+
+  // ---- Reload when the open file changes on disk (external edit)
+  useEffect(() => {
+    if (!currentFile) return;
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    let reloading = false;
+    watch(
+      currentFile,
+      async () => {
+        if (Date.now() - lastWriteRef.current < 1500) return; // our own save
+        if (reloading) return;
+        reloading = true;
+        try {
+          if (hasUnsavedChanges()) {
+            const reload = await confirm(
+              `${baseName(currentFile)} changed on disk. Reload and lose your unsaved changes?`,
+              { title: "File changed", kind: "warning", okLabel: "Reload" }
+            );
+            if (!reload) return;
+          }
+          await loadFile(currentFile);
+        } finally {
+          reloading = false;
+        }
+      },
+      { delayMs: 300 }
+    )
+      .then((unwatch) => {
+        if (cancelled) unwatch();
+        else stop = unwatch;
+      })
+      .catch((err) => console.warn("File watch failed:", err));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [currentFile, loadFile]);
+
+  // ---- Workspace: watch the folder for added/removed files
+  useEffect(() => {
+    if (!workspaceDir) return;
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    watch(workspaceDir, () => refreshWorkspace(workspaceDir), {
+      delayMs: 500,
+      recursive: true,
+    })
+      .then((unwatch) => {
+        if (cancelled) unwatch();
+        else stop = unwatch;
+      })
+      .catch((err) => console.warn("Workspace watch failed:", err));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [workspaceDir, refreshWorkspace]);
+
+  const handleOpenFolder = useCallback(async () => {
+    const selected = await open({ directory: true, multiple: false });
+    if (!selected) return;
+    setWorkspaceDir(selected);
+    setSelectedDir(null);
+    setShowSidebar(true);
+    persistSettings({ workspaceDir: selected, showSidebar: true });
+    refreshWorkspace(selected);
+  }, [refreshWorkspace]);
+
+  // × hides the sidebar; the folder stays remembered for the titlebar toggle
+  const handleCloseFolder = () => {
+    setShowSidebar(false);
+    setSelectedDir(null);
+    persistSettings({ showSidebar: false });
+  };
+
+  const toggleSidebar = useCallback(() => {
+    if (showSidebar && workspaceDir) {
+      handleCloseFolder();
+    } else if (workspaceDir) {
+      setShowSidebar(true);
+      persistSettings({ showSidebar: true });
+    } else {
+      handleOpenFolder();
+    }
+  }, [showSidebar, workspaceDir, handleOpenFolder]);
+
+  const createFileIn = useCallback(
+    async (dir: string) => {
+      const api = apiRef.current;
+      if (!api) return;
+      if (!(await confirmDiscard("create a new file"))) return;
+      try {
+        let name = "Untitled.excalidraw";
+        for (let i = 2; await exists(`${dir}/${name}`); i++) {
+          name = `Untitled-${i}.excalidraw`;
+        }
+        const path = `${dir}/${name}`;
+        lastWriteRef.current = Date.now();
+        await writeTextFile(path, serializeAsJSON([], api.getAppState(), {}, "local"));
+        api.resetScene();
+        setFile(path);
+        markSaved(api.getSceneElements());
+        addRecent(path);
+        persistSettings({ lastFile: path });
+        if (workspaceDir) {
+          setExpandedDirs((prev) => new Set(prev).add(dir));
+          await refreshWorkspace(workspaceDir);
+        }
+        // Drop straight into naming the new file
+        setRenaming({ path, value: name.replace(/\.excalidraw$/, "") });
+      } catch (err) {
+        console.error("New file failed:", err);
+        api.setToast({ message: `Could not create file: ${err}`, closable: true });
+      }
+    },
+    [workspaceDir, refreshWorkspace]
+  );
+
+  const deleteNode = async (node: WsNode) => {
+    const yes = await confirm(
+      node.dir
+        ? `Move folder "${node.name}" and everything in it to the trash?`
+        : `Move "${node.name}" to the trash?`,
+      { title: node.dir ? "Delete folder" : "Delete file", kind: "warning", okLabel: "Move to Trash" }
+    );
+    if (!yes) return;
+    try {
+      await invoke("move_to_trash", { path: node.path });
+      const gone = normPath(node.path);
+      const covers = (p: string) => {
+        const pn = normPath(p);
+        return pn === gone || pn.startsWith(gone + "/");
+      };
+      if (currentFileRef.current && covers(currentFileRef.current)) {
+        apiRef.current?.resetScene();
+        setFile(null);
+        markSaved(apiRef.current?.getSceneElements() ?? []);
+        persistSettings({ lastFile: null });
+      }
+      if (selectedDir && covers(selectedDir)) setSelectedDir(null);
+      const recents = settingsRef.current.recentFiles.filter((p) => !covers(p));
+      setRecentFiles(recents);
+      persistSettings({ recentFiles: recents });
+      if (workspaceDir) refreshWorkspace(workspaceDir);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      apiRef.current?.setToast({ message: `Delete failed: ${err}`, closable: true });
+    }
+  };
+
+  const commitRename = async () => {
+    const r = renamingRef.current;
+    if (!r) return;
+    setRenaming(null);
+    const clean = r.value.trim().replace(/[\\/:*?"<>|]/g, "");
+    const oldPath = r.path;
+    const parent = oldPath.slice(
+      0,
+      Math.max(oldPath.lastIndexOf("/"), oldPath.lastIndexOf("\\"))
+    );
+    const newPath = `${parent}/${clean}${r.dir ? "" : ".excalidraw"}`;
+    if (!clean || normPath(newPath) === normPath(oldPath)) return;
+    try {
+      if (await exists(newPath)) {
+        apiRef.current?.setToast({
+          message: `${baseName(newPath)} already exists`,
+          closable: true,
+        });
+        return;
+      }
+      lastWriteRef.current = Date.now();
+      await rename(oldPath, newPath);
+      // Fix up references to the old path (renamed dir may contain the open file)
+      const current = currentFileRef.current;
+      if (current) {
+        const cn = normPath(current);
+        const on = normPath(oldPath);
+        const replaced = r.dir
+          ? cn.startsWith(on + "/")
+            ? normPath(newPath) + cn.slice(on.length)
+            : null
+          : cn === on
+            ? newPath
+            : null;
+        if (replaced) {
+          setFile(replaced);
+          persistSettings({ lastFile: replaced });
+        }
+      }
+      const recents = settingsRef.current.recentFiles.map((p) =>
+        normPath(p) === normPath(oldPath) ? newPath : p
+      );
+      setRecentFiles(recents);
+      persistSettings({ recentFiles: recents });
+      if (workspaceDir) refreshWorkspace(workspaceDir);
+    } catch (err) {
+      console.error("Rename failed:", err);
+      apiRef.current?.setToast({ message: `Rename failed: ${err}`, closable: true });
+    }
+  };
+
+  const createFolderIn = useCallback(
+    async (dir: string) => {
+      try {
+        let name = "New Folder";
+        for (let i = 2; await exists(`${dir}/${name}`); i++) {
+          name = `New Folder ${i}`;
+        }
+        const path = `${dir}/${name}`;
+        await mkdir(path);
+        if (workspaceDir) {
+          setExpandedDirs((prev) => new Set(prev).add(dir));
+          await refreshWorkspace(workspaceDir);
+        }
+        setRenaming({ path, value: name, dir: true });
+      } catch (err) {
+        console.error("New folder failed:", err);
+        apiRef.current?.setToast({ message: `Could not create folder: ${err}`, closable: true });
+      }
+    },
+    [workspaceDir, refreshWorkspace]
+  );
+
+  // ---- Keyboard: Ctrl+S / Ctrl+Shift+S before Excalidraw sees them
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -202,46 +918,22 @@ export default function App() {
   const handleNew = useCallback(async () => {
     const api = apiRef.current;
     if (!api) return;
-    if (hasUnsavedChanges()) {
-      const discard = await confirm(
-        "You have unsaved changes. Discard them and start a new file?",
-        { title: "Unsaved changes", kind: "warning", okLabel: "Discard" }
-      );
-      if (!discard) return;
-    }
+    if (!(await confirmDiscard("start a new file"))) return;
     api.resetScene();
     setFile(null);
     markSaved(api.getSceneElements());
+    persistSettings({ lastFile: null });
   }, []);
 
   const handleOpen = useCallback(async () => {
-    const api = apiRef.current;
-    if (!api) return;
-    if (hasUnsavedChanges()) {
-      const discard = await confirm(
-        "You have unsaved changes. Discard them and open another file?",
-        { title: "Unsaved changes", kind: "warning", okLabel: "Discard" }
-      );
-      if (!discard) return;
-    }
-    try {
-      const selected = await open({
-        filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
-        multiple: false,
-      });
-      if (!selected) return;
-      const filePath = typeof selected === "string" ? selected : selected;
-      const content = await readTextFile(filePath);
-      const blob = new Blob([content], { type: "application/json" });
-      const scene = await loadFromBlob(blob, api.getAppState(), api.getSceneElements());
-      api.updateScene(scene);
-      api.scrollToContent();
-      setFile(filePath);
-      markSaved(api.getSceneElements());
-    } catch (err) {
-      console.error("Open failed:", err);
-    }
-  }, []);
+    if (!(await confirmDiscard("open another file"))) return;
+    const selected = await open({
+      filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
+      multiple: false,
+    });
+    if (!selected) return;
+    await loadFile(selected);
+  }, [loadFile]);
 
   const handleLinkOpen = useCallback(
     (_element: unknown, event: CustomEvent) => {
@@ -254,7 +946,102 @@ export default function App() {
     []
   );
 
+  const toggleDir = (path: string) => {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const renderNodes = (nodes: WsNode[], depth: number): React.ReactNode =>
+    nodes.map((node) => {
+      const indent = { paddingLeft: 8 + depth * 14 };
+      if (renaming && normPath(renaming.path) === normPath(node.path)) {
+        return (
+          <input
+            key={node.path}
+            className="workspace-rename"
+            style={{ marginLeft: 8 + depth * 14 }}
+            autoFocus
+            value={renaming.value}
+            onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") setRenaming(null);
+            }}
+            onBlur={commitRename}
+          />
+        );
+      }
+      if (node.dir) {
+        const isOpen = expandedDirs.has(node.path);
+        const selected = selectedDir === node.path;
+        return (
+          <div key={node.path}>
+            <button
+              className={`workspace-file workspace-dir${selected ? " selected" : ""}`}
+              style={indent}
+              onClick={() => {
+                toggleDir(node.path);
+                setSelectedDir(node.path);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedDir(node.path);
+                setCtxMenu({ x: e.clientX, y: e.clientY, node });
+              }}
+            >
+              <span className="workspace-caret">{isOpen ? "▾" : "▸"}</span>
+              <FolderIcon open={isOpen} />
+              <span className="workspace-name">{node.name}</span>
+            </button>
+            {isOpen && renderNodes(node.children ?? [], depth + 1)}
+          </div>
+        );
+      }
+      const active =
+        !!currentFile && normPath(currentFile) === normPath(node.path);
+      return (
+        <button
+          key={node.path}
+          className={`workspace-file${active ? " active" : ""}`}
+          style={indent}
+          onClick={() => {
+            setSelectedDir(parentDir(node.path));
+            openPathGuarded(node.path);
+          }}
+          onDoubleClick={() =>
+            setRenaming({
+              path: node.path,
+              value: node.name.replace(/\.excalidraw$/, ""),
+            })
+          }
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setCtxMenu({ x: e.clientX, y: e.clientY, node });
+          }}
+          title={node.name}
+        >
+          <span className="workspace-caret" />
+          <FileIcon />
+          <span className="workspace-name">{node.name.replace(/\.excalidraw$/, "")}</span>
+          {active && dirty && <span className="workspace-dirty">●</span>}
+        </button>
+      );
+    });
+
   if (!mounted) return null;
+
+  const toggleMenu = () => {
+    const api = apiRef.current;
+    if (!api) return;
+    const open = api.getAppState().openMenu === "canvas";
+    api.updateScene({ appState: { openMenu: open ? null : "canvas" } });
+  };
 
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
@@ -266,61 +1053,242 @@ export default function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}>
-      <Titlebar theme={theme} onToggleTheme={toggleTheme} currentFile={currentFile} onSave={handleSave} dirty={dirty} />
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Excalidraw
-          excalidrawAPI={(api) => {
-            if (api) {
-              setExcalidrawAPI(api);
-              apiRef.current = api;
-              if (pendingLibraryUrlRef.current) {
-                importLibrary(pendingLibraryUrlRef.current);
-                pendingLibraryUrlRef.current = null;
+      <Titlebar
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        currentFile={currentFile}
+        onSave={handleSave}
+        dirty={dirty}
+        autosave={autosave}
+        onToggleAutosave={toggleAutosave}
+        onToggleSidebar={toggleSidebar}
+        onToggleMenu={toggleMenu}
+      />
+      <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+        {workspaceDir && showSidebar && (
+          <div className="workspace-sidebar">
+            <div className="workspace-header">
+              <span
+                className="workspace-title"
+                title={workspaceDir}
+                onClick={() => setSelectedDir(null)}
+              >
+                {baseName(workspaceDir)}
+              </span>
+              <button
+                className="workspace-btn"
+                onClick={() => createFileIn(selectedDir ?? workspaceDir)}
+                title={`New file in ${baseName(selectedDir ?? workspaceDir)}`}
+              >
+                <FilePlusIcon />
+              </button>
+              <button
+                className="workspace-btn"
+                onClick={() => createFolderIn(selectedDir ?? workspaceDir)}
+                title={`New folder in ${baseName(selectedDir ?? workspaceDir)}`}
+              >
+                <FolderPlusIcon />
+              </button>
+              <button className="workspace-btn" onClick={handleCloseFolder} title="Close folder">
+                ×
+              </button>
+            </div>
+            <div className="workspace-list">
+              {renderNodes(workspaceTree, 0)}
+              {workspaceTree.length === 0 && (
+                <div className="workspace-empty">No .excalidraw files</div>
+              )}
+            </div>
+          </div>
+        )}
+        {ctxMenu && (
+          <div
+            className="ctx-menu"
+            style={{
+              left: Math.min(ctxMenu.x, window.innerWidth - 190),
+              top: Math.min(ctxMenu.y, window.innerHeight - 140),
+            }}
+          >
+            {ctxMenu.node.dir ? (
+              <>
+                <button className="ctx-menu-item" onClick={() => createFileIn(ctxMenu.node.path)}>
+                  New file here
+                </button>
+                <button
+                  className="ctx-menu-item"
+                  onClick={() =>
+                    setRenaming({
+                      path: ctxMenu.node.path,
+                      value: ctxMenu.node.name,
+                      dir: true,
+                    })
+                  }
+                >
+                  Rename
+                </button>
+                <button className="ctx-menu-item ctx-menu-item-danger" onClick={() => deleteNode(ctxMenu.node)}>
+                  Delete
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="ctx-menu-item"
+                  onClick={() =>
+                    setRenaming({
+                      path: ctxMenu.node.path,
+                      value: ctxMenu.node.name.replace(/\.excalidraw$/, ""),
+                    })
+                  }
+                >
+                  Rename
+                </button>
+                <button className="ctx-menu-item ctx-menu-item-danger" onClick={() => deleteNode(ctxMenu.node)}>
+                  Delete
+                </button>
+              </>
+            )}
+            <button
+              className="ctx-menu-item"
+              onClick={() => revealItemInDir(ctxMenu.node.path)}
+            >
+              Reveal in file manager
+            </button>
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Excalidraw
+            excalidrawAPI={(api) => {
+              if (api && apiRef.current !== api) {
+                setExcalidrawAPI(api);
+                apiRef.current = api;
+                if (pendingLibraryUrlRef.current) {
+                  importLibrary(pendingLibraryUrlRef.current);
+                  pendingLibraryUrlRef.current = null;
+                }
+                onApiReady();
               }
+            }}
+            libraryReturnUrl="excalidraw-desktop://library"
+            initialData={{
+              libraryItems: libSectionsPromiseRef.current.then(
+                (sections) =>
+                  sections.find((s) => s.id === PERSONAL_ID)?.items ?? []
+              ),
+              appState: loadCanvasPrefs(),
+            }}
+            onLibraryChange={(items) =>
+              // "Add to library" (and other internal changes) land in the Personal section
+              updateLibSections((prev) =>
+                prev.map((s) =>
+                  s.id === PERSONAL_ID
+                    ? { ...s, items: items as LibraryItem[] }
+                    : s
+                )
+              )
             }
-          }}
-          libraryReturnUrl="excalidraw-desktop://library"
-          initialData={{ libraryItems: loadStoredLibrary() }}
-          onLibraryChange={async (items) => {
-            try {
-              await writeTextFile(LIBRARY_FILE, JSON.stringify(items), {
-                baseDir: BaseDirectory.AppData,
-              });
-            } catch (err) {
-              console.error("Library persist failed:", err);
-              apiRef.current?.setToast({
-                message: `Could not save library: ${err}`,
-                closable: true,
-              });
-            }
-          }}
-          theme={theme}
-          onLinkOpen={handleLinkOpen as any}
-          onChange={(elements, appState) => {
-            if (appState.theme !== theme) setTheme(appState.theme);
-            setDirty(getSceneVersion(elements) !== savedVersionRef.current);
-          }}
-          UIOptions={{
-            canvasActions: {
-              export: false,
-              saveToActiveFile: false,
-            },
-          }}
-        >
-        <MainMenu>
-          <MainMenu.Item onSelect={() => setTimeout(handleNew, 100)}>New File</MainMenu.Item>
-          <MainMenu.Item onSelect={() => setTimeout(handleOpen, 100)}>Open File...</MainMenu.Item>
-          <MainMenu.Item onSelect={() => setTimeout(handleSave, 100)}>Save</MainMenu.Item>
-          <MainMenu.Item onSelect={() => setTimeout(handleSaveAs, 100)}>Save As...</MainMenu.Item>
-          <MainMenu.Separator />
-          <MainMenu.DefaultItems.SaveAsImage />
-          <MainMenu.DefaultItems.CommandPalette />
-          <MainMenu.DefaultItems.SearchMenu />
-          <MainMenu.DefaultItems.Help />
-          <MainMenu.Separator />
-          <MainMenu.DefaultItems.ChangeCanvasBackground />
-        </MainMenu>
-        </Excalidraw>
+            renderTopRightUI={() => (
+              <Sidebar.Trigger name="libraries" title="Libraries">
+                Library
+              </Sidebar.Trigger>
+            )}
+            theme={theme}
+            onLinkOpen={handleLinkOpen as any}
+            onChange={(elements, appState) => {
+              if (appState.theme !== theme) setTheme(appState.theme);
+              setDirty(getSceneVersion(elements) !== savedVersionRef.current);
+              const prefs = JSON.stringify(
+                Object.fromEntries(
+                  PREF_KEYS.map((k) => [k, (appState as unknown as Record<string, unknown>)[k]])
+                )
+              );
+              if (prefs !== lastPrefsRef.current) {
+                lastPrefsRef.current = prefs;
+                localStorage.setItem(PREFS_KEY, prefs);
+              }
+            }}
+            UIOptions={{
+              canvasActions: {
+                export: false,
+                saveToActiveFile: false,
+              },
+            }}
+          >
+            <MainMenu>
+              <MainMenu.Item onSelect={() => setTimeout(handleNew, 100)}>New File</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleOpen, 100)}>Open File...</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleOpenFolder, 100)}>Open Folder...</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleSave, 100)}>Save</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleSaveAs, 100)}>Save As...</MainMenu.Item>
+              {recentFiles.length > 0 && (
+                <MainMenu.ItemCustom className="recent-item-custom">
+                  <RecentFlyout
+                    files={recentFiles}
+                    onOpen={(path) => {
+                      apiRef.current?.updateScene({ appState: { openMenu: null } });
+                      setTimeout(() => openPathGuarded(path), 100);
+                    }}
+                  />
+                </MainMenu.ItemCustom>
+              )}
+              <MainMenu.Separator />
+              <MainMenu.DefaultItems.SaveAsImage />
+              <MainMenu.DefaultItems.CommandPalette />
+              <MainMenu.DefaultItems.SearchMenu />
+              <MainMenu.DefaultItems.Help />
+              <MainMenu.Separator />
+              <MainMenu.Item onSelect={toggleAutosave}>
+                {autosave ? "Autosave: On" : "Autosave: Off"}
+              </MainMenu.Item>
+              <MainMenu.DefaultItems.ChangeCanvasBackground />
+            </MainMenu>
+            <Sidebar name="libraries" docked={libDocked} onDock={setLibDocked}>
+              <Sidebar.Header>
+                <div className="lib-header">
+                  <span className="lib-header-title">Libraries</span>
+                  <button
+                    className="lib-header-btn"
+                    title="Import library file..."
+                    onClick={handleImportLibraryFile}
+                  >
+                    <svg {...iconProps}>
+                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                      <path d="M12 18v-6" />
+                      <path d="m9 15 3 3 3-3" />
+                    </svg>
+                  </button>
+                  <button
+                    className="lib-header-btn"
+                    title="Browse libraries (libraries.excalidraw.com)"
+                    onClick={handleBrowseLibraries}
+                  >
+                    <svg {...iconProps}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20" />
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  </button>
+                </div>
+              </Sidebar.Header>
+              <LibraryPanel
+                sections={libSections}
+                onToggleCollapse={(id) =>
+                  updateLibSections((prev) =>
+                    prev.map((s) =>
+                      s.id === id ? { ...s, collapsed: !s.collapsed } : s
+                    )
+                  )
+                }
+                onRemoveSection={removeLibSection}
+                onRemoveItem={removeLibItem}
+                onInsert={(item) =>
+                  apiRef.current && insertLibraryItem(apiRef.current, item)
+                }
+              />
+            </Sidebar>
+          </Excalidraw>
+        </div>
       </div>
     </div>
   );
