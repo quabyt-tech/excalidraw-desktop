@@ -13,6 +13,7 @@ interface TitlebarProps {
   onToggleAutosave: () => void;
   onToggleSidebar: () => void;
   onToggleMenu: () => void;
+  onPresent: () => void;
 }
 
 function MenuButton({ onToggle }: { onToggle: () => void }) {
@@ -43,6 +44,25 @@ function SidebarToggle({ onToggle }: { onToggle: () => void }) {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2" />
         <line x1="9" y1="3" x2="9" y2="21" />
+      </svg>
+    </button>
+  );
+}
+
+function PresentButton({ onPresent }: { onPresent: () => void }) {
+  return (
+    <button
+      className="titlebar-btn theme-toggle-btn"
+      onClick={onPresent}
+      title="Present frames as slides (F5)"
+      aria-label="Present"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 3h20" />
+        <path d="M4 3v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3" />
+        <path d="m12 16 0 5" />
+        <path d="m8 21 8 0" />
+        <path d="m10 7 4 2.5-4 2.5z" fill="currentColor" />
       </svg>
     </button>
   );
@@ -111,11 +131,20 @@ function ThemeToggle({ theme, onToggleTheme }: { theme: "light" | "dark"; onTogg
   );
 }
 
-export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, dirty, autosave, onToggleAutosave, onToggleSidebar, onToggleMenu }: TitlebarProps) {
+export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, dirty, autosave, onToggleAutosave, onToggleSidebar, onToggleMenu, onPresent }: TitlebarProps) {
   const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : null;
-  const title = fileName
-    ? `Excalidraw Desktop - ${dirty ? "● " : ""}${fileName}`
-    : "Excalidraw Desktop";
+  const title = (
+    <>
+      Excalidraw Desktop
+      {fileName && (
+        <>
+          {" - "}
+          {fileName}
+          {dirty && <sup className="titlebar-dirty">*</sup>}
+        </>
+      )}
+    </>
+  );
   if (isMac) {
     return (
       <div data-tauri-drag-region className="titlebar titlebar-mac">
@@ -127,6 +156,7 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
         </div>
         <div className="titlebar-actions">
           <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
+          <PresentButton onPresent={onPresent} />
           <SaveButton onSave={onSave} dirty={dirty} />
           <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         </div>
@@ -144,6 +174,7 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
       </div>
       <div className="titlebar-buttons">
         <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
+        <PresentButton onPresent={onPresent} />
         <SaveButton onSave={onSave} dirty={dirty} />
         <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         <button

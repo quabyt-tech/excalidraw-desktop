@@ -13,9 +13,19 @@ fn get_launch_file() -> Option<String> {
 }
 
 /// Move a file or folder to the OS trash / recycle bin.
+///
+/// `workspace_root` must be supplied by the caller (the currently open workspace
+/// folder) and `path` is only allowed if it canonicalizes to somewhere inside it.
+/// This command talks to the `trash` crate directly, bypassing the fs plugin's
+/// scope checks, so it needs its own validation against arbitrary invoke() calls.
 #[tauri::command]
-fn move_to_trash(path: String) -> Result<(), String> {
-    trash::delete(&path).map_err(|e| e.to_string())
+fn move_to_trash(path: String, workspace_root: String) -> Result<(), String> {
+    let target = std::fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    let root = std::fs::canonicalize(&workspace_root).map_err(|e| e.to_string())?;
+    if target != root && !target.starts_with(&root) {
+        return Err("Path is outside the open workspace".into());
+    }
+    trash::delete(&target).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

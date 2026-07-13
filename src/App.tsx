@@ -3,12 +3,13 @@ import {
   Excalidraw,
   MainMenu,
   Sidebar,
+  exportToSvg,
   loadFromBlob,
   loadLibraryFromBlob,
   serializeAsJSON,
   getSceneVersion,
 } from "@excalidraw/excalidraw";
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import { open, save, ask, confirm } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -188,6 +189,16 @@ function baseName(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+// Slide order: frame name (numeric-aware); unnamed frames keep scene order
+function sortedFrames(api: ExcalidrawImperativeAPI) {
+  return api
+    .getSceneElements()
+    .filter((el) => el.type === "frame")
+    .sort((a, b) =>
+      (a.name ?? "").localeCompare(b.name ?? "", undefined, { numeric: true })
+    );
+}
+
 // Canvas preferences persisted across restarts (the web app keeps these in localStorage too)
 const PREFS_KEY = "canvas-prefs";
 const PREF_KEYS = [
@@ -279,6 +290,23 @@ export default function App() {
   const [dirty, setDirty] = useState(false);
   const savedVersionRef = useRef(0);
 
+  // ---- Presentation mode: frames become slides
+  const [presenting, setPresenting] = useState(false);
+  const presentRef = useRef<{
+    frames: string[];
+    index: number;
+    prev: Pick<
+      AppState,
+      | "viewModeEnabled"
+      | "zenModeEnabled"
+      | "frameRendering"
+      | "scrollX"
+      | "scrollY"
+      | "zoom"
+    >;
+  } | null>(null);
+  const [slide, setSlide] = useState({ index: 0, total: 0 });
+
   // Persisted settings (recent files, autosave, workspace)
   const settingsRef = useRef<Settings>({ ...DEFAULT_SETTINGS });
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
@@ -301,6 +329,10 @@ export default function App() {
 
   // Sidebar right-click context menu
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; node: WsNode } | null>(null);
+
+  // Drag-and-drop move (node in a ref: dataTransfer can't carry objects)
+  const dragNodeRef = useRef<WsNode | null>(null);
+  const [dropDir, setDropDir] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -553,6 +585,11 @@ export default function App() {
   // ---- Deep link from libraries.excalidraw.com: excalidraw-desktop://library#addLibrary=<url>
   const pendingLibraryUrlRef = useRef<string | null>(null);
 
+  // Only libraries.excalidraw.com is a trusted source for addLibrary deep links;
+  // anyone can craft an excalidraw-desktop://library#addLibrary=<url> link, so this
+  // guards against fetching (and rendering the SVG preview of) an attacker-controlled URL.
+  const TRUSTED_LIBRARY_HOST = "libraries.excalidraw.com";
+
   const importLibrary = useCallback(async (deepLink: string) => {
     const api = apiRef.current;
     if (!api) {
@@ -562,16 +599,29 @@ export default function App() {
     const hash = deepLink.slice(deepLink.indexOf("#") + 1);
     const libraryUrl = new URLSearchParams(hash).get("addLibrary");
     if (!libraryUrl) return;
+    let parsed: URL;
+    try {
+      parsed = new URL(libraryUrl);
+    } catch {
+      console.warn("Library import rejected: not a valid URL:", libraryUrl);
+      return;
+    }
+    if (parsed.protocol !== "https:" || parsed.hostname !== TRUSTED_LIBRARY_HOST) {
+      console.warn("Library import rejected: untrusted source:", libraryUrl);
+      api.setToast({
+        message: `Refused to import library from untrusted source: ${parsed.hostname}`,
+        closable: true,
+      });
+      return;
+    }
     const name = prettyLibName(libraryUrl.split("/").pop() ?? "Library");
     try {
-      const yes = await ask(`Add the library "${name}"?`, {
-        title: "Add library",
-        kind: "info",
-      });
-      if (!yes) return;
+      // No confirmation: the user just clicked "Add to Excalidraw" on the
+      // trusted library site; the host check above is the security gate
       const blob = await (await fetch(libraryUrl)).blob();
       const items = await loadLibraryFromBlob(blob);
       addLibrarySection(name, items as LibraryItem[]);
+      api.setToast({ message: `Added library "${name}"`, closable: true });
     } catch (err) {
       console.error("Library import failed:", err);
       api.setToast({ message: `Library import failed: ${err}`, closable: true });
@@ -794,6 +844,8 @@ export default function App() {
   );
 
   const deleteNode = async (node: WsNode) => {
+    // Nodes only ever come from the workspace tree, which requires an open folder.
+    if (!workspaceDir) return;
     const yes = await confirm(
       node.dir
         ? `Move folder "${node.name}" and everything in it to the trash?`
@@ -802,7 +854,7 @@ export default function App() {
     );
     if (!yes) return;
     try {
-      await invoke("move_to_trash", { path: node.path });
+      await invoke("move_to_trash", { path: node.path, workspaceRoot: workspaceDir });
       const gone = normPath(node.path);
       const covers = (p: string) => {
         const pn = normPath(p);
@@ -847,32 +899,57 @@ export default function App() {
       }
       lastWriteRef.current = Date.now();
       await rename(oldPath, newPath);
-      // Fix up references to the old path (renamed dir may contain the open file)
-      const current = currentFileRef.current;
-      if (current) {
-        const cn = normPath(current);
-        const on = normPath(oldPath);
-        const replaced = r.dir
-          ? cn.startsWith(on + "/")
-            ? normPath(newPath) + cn.slice(on.length)
-            : null
-          : cn === on
-            ? newPath
-            : null;
-        if (replaced) {
-          setFile(replaced);
-          persistSettings({ lastFile: replaced });
-        }
-      }
-      const recents = settingsRef.current.recentFiles.map((p) =>
-        normPath(p) === normPath(oldPath) ? newPath : p
-      );
-      setRecentFiles(recents);
-      persistSettings({ recentFiles: recents });
+      fixupPaths(oldPath, newPath, !!r.dir);
       if (workspaceDir) refreshWorkspace(workspaceDir);
     } catch (err) {
       console.error("Rename failed:", err);
       apiRef.current?.setToast({ message: `Rename failed: ${err}`, closable: true });
+    }
+  };
+
+  // Fix up references to the old path after a rename/move
+  // (a moved dir may contain the open file or recents)
+  const fixupPaths = (oldPath: string, newPath: string, isDir: boolean) => {
+    const on = normPath(oldPath);
+    const remap = (p: string) => {
+      const pn = normPath(p);
+      if (pn === on) return newPath;
+      if (isDir && pn.startsWith(on + "/")) return normPath(newPath) + pn.slice(on.length);
+      return null;
+    };
+    const current = currentFileRef.current;
+    const replaced = current ? remap(current) : null;
+    if (replaced) {
+      setFile(replaced);
+      persistSettings({ lastFile: replaced });
+    }
+    const recents = settingsRef.current.recentFiles.map((p) => remap(p) ?? p);
+    setRecentFiles(recents);
+    persistSettings({ recentFiles: recents });
+  };
+
+  const moveNode = async (node: WsNode, destDir: string) => {
+    const from = normPath(node.path);
+    const dest = normPath(destDir);
+    if (normPath(parentDir(node.path)) === dest) return; // already there
+    if (node.dir && (dest === from || dest.startsWith(from + "/"))) return; // into itself
+    const newPath = `${destDir}/${node.name}`;
+    try {
+      if (await exists(newPath)) {
+        apiRef.current?.setToast({
+          message: `${node.name} already exists in ${baseName(destDir)}`,
+          closable: true,
+        });
+        return;
+      }
+      lastWriteRef.current = Date.now();
+      await rename(node.path, newPath);
+      fixupPaths(node.path, newPath, node.dir);
+      setExpandedDirs((prev) => new Set(prev).add(destDir));
+      if (workspaceDir) refreshWorkspace(workspaceDir);
+    } catch (err) {
+      console.error("Move failed:", err);
+      apiRef.current?.setToast({ message: `Move failed: ${err}`, closable: true });
     }
   };
 
@@ -898,7 +975,164 @@ export default function App() {
     [workspaceDir, refreshWorkspace]
   );
 
-  // ---- Keyboard: Ctrl+S / Ctrl+Shift+S before Excalidraw sees them
+  // ---- Frames panel: PowerPoint-style slide list
+  const [frameThumbs, setFrameThumbs] = useState<
+    { id: string; name: string; svg: string }[]
+  >([]);
+  const [framesDocked, setFramesDocked] = useState(true);
+  const [hasFrames, setHasFrames] = useState(false);
+  const framesOpenRef = useRef(false);
+  const thumbTimerRef = useRef<number | undefined>(undefined);
+
+  const refreshFrameThumbs = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) return;
+    const elements = api.getSceneElements();
+    const files = api.getFiles();
+    const bg = api.getAppState().viewBackgroundColor;
+    const thumbs = await Promise.all(
+      sortedFrames(api).map(async (frame, i) => {
+        const name = frame.name ?? "Frame";
+        try {
+          const svg = await exportToSvg({
+            elements,
+            files,
+            appState: { exportBackground: true, viewBackgroundColor: bg },
+            exportingFrame: frame,
+            skipInliningFonts: true,
+          });
+          if (!svg.getAttribute("viewBox")) {
+            svg.setAttribute(
+              "viewBox",
+              `0 0 ${svg.getAttribute("width")} ${svg.getAttribute("height")}`
+            );
+          }
+          svg.setAttribute("width", "100%");
+          svg.setAttribute("height", "100%");
+          // clipPath ids are frame ids, identical across exports; namespace them
+          // per thumbnail or all inlined SVGs resolve against the first one's defs
+          svg.querySelectorAll("clipPath").forEach((cp: Element) => {
+            const next = `thumb${i}-${cp.id}`;
+            svg
+              .querySelectorAll(`[clip-path="url(#${cp.id})"]`)
+              .forEach((el: Element) =>
+                el.setAttribute("clip-path", `url(#${next})`)
+              );
+            cp.id = next;
+          });
+          return { id: frame.id, name, svg: svg.outerHTML };
+        } catch {
+          return { id: frame.id, name, svg: "" };
+        }
+      })
+    );
+    setFrameThumbs(thumbs);
+  }, []);
+
+  const goToFrame = (id: string) => {
+    const api = apiRef.current;
+    const frame = api?.getSceneElements().find((el) => el.id === id);
+    if (api && frame) {
+      api.scrollToContent(frame, {
+        fitToViewport: true,
+        viewportZoomFactor: 0.85,
+        animate: true,
+        duration: 300,
+      });
+    }
+  };
+
+  // ---- Presentation mode
+  const showSlide = useCallback((i: number) => {
+    const api = apiRef.current;
+    const p = presentRef.current;
+    if (!api || !p) return;
+    const index = Math.max(0, Math.min(i, p.frames.length - 1));
+    p.index = index;
+    setSlide({ index, total: p.frames.length });
+    const frame = api.getSceneElements().find((el) => el.id === p.frames[index]);
+    if (frame) {
+      api.scrollToContent(frame, {
+        fitToViewport: true,
+        viewportZoomFactor: 1,
+        animate: true,
+        duration: 300,
+      });
+    }
+  }, []);
+
+  const startPresentation = useCallback(() => {
+    const api = apiRef.current;
+    if (!api || presentRef.current) return;
+    const frames = sortedFrames(api);
+    if (frames.length === 0) {
+      api.setToast({
+        message: "Add frames to the canvas to present them as slides",
+        closable: true,
+      });
+      return;
+    }
+    const st = api.getAppState();
+    presentRef.current = {
+      frames: frames.map((f) => f.id),
+      index: 0,
+      prev: {
+        viewModeEnabled: st.viewModeEnabled,
+        zenModeEnabled: st.zenModeEnabled,
+        frameRendering: st.frameRendering,
+        scrollX: st.scrollX,
+        scrollY: st.scrollY,
+        zoom: st.zoom,
+      },
+    };
+    setPresenting(true);
+    getCurrentWindow().setFullscreen(true).catch(console.warn);
+    api.updateScene({
+      appState: {
+        viewModeEnabled: true,
+        zenModeEnabled: true,
+        openMenu: null,
+        frameRendering: { enabled: true, clip: true, name: false, outline: false },
+      },
+    });
+    api.setActiveTool({ type: "laser" });
+    showSlide(0);
+  }, [showSlide]);
+
+  const exitPresentation = useCallback(() => {
+    const api = apiRef.current;
+    const p = presentRef.current;
+    if (!p) return;
+    presentRef.current = null;
+    setPresenting(false);
+    getCurrentWindow().setFullscreen(false).catch(console.warn);
+    if (api) {
+      api.updateScene({ appState: p.prev });
+      api.setActiveTool({ type: "selection" });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!presenting) return;
+    const handler = (e: KeyboardEvent) => {
+      const p = presentRef.current;
+      if (!p) return;
+      if (e.key === "Escape") exitPresentation();
+      else if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key))
+        showSlide(p.index + 1);
+      else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key))
+        showSlide(p.index - 1);
+      else if (e.key === "Home") showSlide(0);
+      else if (e.key === "End") showSlide(p.frames.length - 1);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("keydown", handler, true);
+    return () => document.removeEventListener("keydown", handler, true);
+  }, [presenting, exitPresentation, showSlide]);
+
+  // ---- Keyboard: Ctrl+S / Ctrl+Shift+S / F5 before Excalidraw sees them
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -909,11 +1143,15 @@ export default function App() {
         } else {
           handleSave();
         }
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!presentRef.current) startPresentation();
       }
     };
     document.addEventListener("keydown", handler, true);
     return () => document.removeEventListener("keydown", handler, true);
-  }, [handleSave, handleSaveAs]);
+  }, [handleSave, handleSaveAs, startPresentation]);
 
   const handleNew = useCallback(async () => {
     const api = apiRef.current;
@@ -981,8 +1219,36 @@ export default function App() {
         return (
           <div key={node.path}>
             <button
-              className={`workspace-file workspace-dir${selected ? " selected" : ""}`}
+              className={`workspace-file workspace-dir${selected ? " selected" : ""}${
+                dropDir === node.path ? " drop-target" : ""
+              }`}
               style={indent}
+              draggable
+              onDragStart={(e) => {
+                dragNodeRef.current = node;
+                e.dataTransfer.effectAllowed = "move";
+                // WebKit aborts drags with an empty dataTransfer
+                e.dataTransfer.setData("text/plain", node.path);
+              }}
+              onDragEnd={() => {
+                dragNodeRef.current = null;
+                setDropDir(null);
+              }}
+              onDragOver={(e) => {
+                if (!dragNodeRef.current) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setDropDir(node.path);
+              }}
+              onDragLeave={() => setDropDir((d) => (d === node.path ? null : d))}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropDir(null);
+                const n = dragNodeRef.current;
+                dragNodeRef.current = null;
+                if (n) moveNode(n, node.path);
+              }}
               onClick={() => {
                 toggleDir(node.path);
                 setSelectedDir(node.path);
@@ -1009,6 +1275,32 @@ export default function App() {
           key={node.path}
           className={`workspace-file${active ? " active" : ""}`}
           style={indent}
+          draggable
+          onDragStart={(e) => {
+            dragNodeRef.current = node;
+            e.dataTransfer.effectAllowed = "move";
+            // WebKit aborts drags with an empty dataTransfer
+            e.dataTransfer.setData("text/plain", node.path);
+          }}
+          onDragEnd={() => {
+            dragNodeRef.current = null;
+            setDropDir(null);
+          }}
+          onDragOver={(e) => {
+            // Dropping on a file targets its parent folder
+            if (!dragNodeRef.current) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setDropDir(parentDir(node.path));
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropDir(null);
+            const n = dragNodeRef.current;
+            dragNodeRef.current = null;
+            if (n) moveNode(n, parentDir(node.path));
+          }}
           onClick={() => {
             setSelectedDir(parentDir(node.path));
             openPathGuarded(node.path);
@@ -1029,7 +1321,7 @@ export default function App() {
           <span className="workspace-caret" />
           <FileIcon />
           <span className="workspace-name">{node.name.replace(/\.excalidraw$/, "")}</span>
-          {active && dirty && <span className="workspace-dirty">●</span>}
+          {active && dirty && <sup className="workspace-dirty">*</sup>}
         </button>
       );
     });
@@ -1052,20 +1344,26 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}>
-      <Titlebar
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        currentFile={currentFile}
-        onSave={handleSave}
-        dirty={dirty}
-        autosave={autosave}
-        onToggleAutosave={toggleAutosave}
-        onToggleSidebar={toggleSidebar}
-        onToggleMenu={toggleMenu}
-      />
+    <div
+      className={presenting ? "presenting" : undefined}
+      style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}
+    >
+      {!presenting && (
+        <Titlebar
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          currentFile={currentFile}
+          onSave={handleSave}
+          dirty={dirty}
+          autosave={autosave}
+          onToggleAutosave={toggleAutosave}
+          onToggleSidebar={toggleSidebar}
+          onToggleMenu={toggleMenu}
+          onPresent={startPresentation}
+        />
+      )}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
-        {workspaceDir && showSidebar && (
+        {workspaceDir && showSidebar && !presenting && (
           <div className="workspace-sidebar">
             <div className="workspace-header">
               <span
@@ -1093,7 +1391,26 @@ export default function App() {
                 ×
               </button>
             </div>
-            <div className="workspace-list">
+            <div
+              className={`workspace-list${
+                dropDir && normPath(dropDir) === normPath(workspaceDir) ? " drop-root" : ""
+              }`}
+              onDragOver={(e) => {
+                if (!dragNodeRef.current) return;
+                e.preventDefault();
+                setDropDir(workspaceDir);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget === e.target) setDropDir(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropDir(null);
+                const n = dragNodeRef.current;
+                dragNodeRef.current = null;
+                if (n) moveNode(n, workspaceDir);
+              }}
+            >
               {renderNodes(workspaceTree, 0)}
               {workspaceTree.length === 0 && (
                 <div className="workspace-empty">No .excalidraw files</div>
@@ -1188,15 +1505,39 @@ export default function App() {
               )
             }
             renderTopRightUI={() => (
-              <Sidebar.Trigger name="libraries" title="Libraries">
-                Library
-              </Sidebar.Trigger>
+              <>
+                {hasFrames && (
+                  <Sidebar.Trigger name="frames" title="Frames">
+                    Frames
+                  </Sidebar.Trigger>
+                )}
+                <Sidebar.Trigger name="libraries" title="Libraries">
+                  Library
+                </Sidebar.Trigger>
+              </>
             )}
             theme={theme}
             onLinkOpen={handleLinkOpen as any}
             onChange={(elements, appState) => {
               if (appState.theme !== theme) setTheme(appState.theme);
-              setDirty(getSceneVersion(elements) !== savedVersionRef.current);
+              // onChange includes soft-deleted elements; savedVersionRef is
+              // computed from getSceneElements() (non-deleted only) — filter
+              // or the versions never match again after any deletion
+              setDirty(
+                getSceneVersion(elements.filter((el) => !el.isDeleted)) !==
+                  savedVersionRef.current
+              );
+              const anyFrames = elements.some(
+                (el) => el.type === "frame" && !el.isDeleted
+              );
+              setHasFrames(anyFrames);
+              // trigger hides with the last frame; close the orphaned panel too
+              if (!anyFrames && framesOpenRef.current)
+                apiRef.current?.toggleSidebar({ name: "frames", force: false });
+              if (framesOpenRef.current) {
+                window.clearTimeout(thumbTimerRef.current);
+                thumbTimerRef.current = window.setTimeout(refreshFrameThumbs, 600);
+              }
               const prefs = JSON.stringify(
                 Object.fromEntries(
                   PREF_KEYS.map((k) => [k, (appState as unknown as Record<string, unknown>)[k]])
@@ -1232,6 +1573,9 @@ export default function App() {
                 </MainMenu.ItemCustom>
               )}
               <MainMenu.Separator />
+              <MainMenu.Item onSelect={() => setTimeout(startPresentation, 100)}>
+                Present (F5)
+              </MainMenu.Item>
               <MainMenu.DefaultItems.SaveAsImage />
               <MainMenu.DefaultItems.CommandPalette />
               <MainMenu.DefaultItems.SearchMenu />
@@ -1287,9 +1631,73 @@ export default function App() {
                 }
               />
             </Sidebar>
+            <Sidebar
+              name="frames"
+              docked={framesDocked}
+              onDock={setFramesDocked}
+              onStateChange={(state) => {
+                const open = state?.name === "frames";
+                if (open && !framesOpenRef.current) refreshFrameThumbs();
+                framesOpenRef.current = open;
+              }}
+            >
+              <Sidebar.Header>
+                <div className="lib-header">
+                  <span className="lib-header-title">Frames</span>
+                </div>
+              </Sidebar.Header>
+              <div className="frames-list">
+                {frameThumbs.map((f, i) => (
+                  <button
+                    key={f.id}
+                    className="frame-item"
+                    onClick={() => goToFrame(f.id)}
+                    title={f.name}
+                  >
+                    <span className="frame-item-num">{i + 1}</span>
+                    <span className="frame-item-body">
+                      <span
+                        className="frame-thumb"
+                        dangerouslySetInnerHTML={{ __html: f.svg }}
+                      />
+                      <span className="frame-item-name">{f.name}</span>
+                    </span>
+                  </button>
+                ))}
+                {frameThumbs.length === 0 && (
+                  <div className="lib-empty">
+                    No frames yet. Use the frame tool (F) to create slides.
+                  </div>
+                )}
+              </div>
+            </Sidebar>
           </Excalidraw>
         </div>
       </div>
+      {presenting && (
+        <div className="present-bar">
+          <button
+            onClick={() => showSlide(slide.index - 1)}
+            disabled={slide.index === 0}
+            title="Previous slide"
+          >
+            ‹
+          </button>
+          <span className="present-count">
+            {slide.index + 1} / {slide.total}
+          </span>
+          <button
+            onClick={() => showSlide(slide.index + 1)}
+            disabled={slide.index === slide.total - 1}
+            title="Next slide"
+          >
+            ›
+          </button>
+          <button onClick={exitPresentation} title="Exit (Esc)">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

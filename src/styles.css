@@ -194,11 +194,6 @@ body,
   display: none !important;
 }
 
-/* ponytail: suffix rides on every contextual hint, not just the idle one — fine, right-click is valid in all of them */
-.excalidraw .HintViewer > span::after {
-  content: " , or right-click to see more options";
-}
-
 /* Workspace sidebar */
 .workspace-sidebar {
   width: 200px;
@@ -323,6 +318,14 @@ body,
 
 .workspace-dir {
   font-weight: 600;
+}
+
+/* Drag-and-drop move targets */
+.workspace-file.drop-target,
+.workspace-list.drop-root {
+  outline: 1.5px dashed #8583d1;
+  outline-offset: -2px;
+  background: rgba(133, 131, 209, 0.12);
 }
 
 .workspace-caret {
@@ -696,4 +699,153 @@ body,
 .titlebar-btn:disabled:hover {
   background: transparent;
   opacity: 0.3;
+}
+/* Presentation mode slide bar */
+.present-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.present-bar:hover {
+  opacity: 1;
+}
+
+.present-bar button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 9px;
+  border-radius: 6px;
+  color: inherit;
+}
+
+.present-bar button:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.present-bar button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.present-count {
+  padding: 0 6px;
+  user-select: none;
+}
+
+:root[data-theme="dark"] .present-bar {
+  background: #232329;
+  border-color: #33333b;
+  color: #e3e3e8;
+}
+
+:root[data-theme="dark"] .present-bar button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Hide Excalidraw's UI overlay while presenting (laser draws on canvas, unaffected) */
+.presenting .excalidraw .layer-ui__wrapper,
+.presenting .excalidraw .sidebar {
+  display: none;
+}
+
+/* Frames panel (PowerPoint-style slide list) */
+.frames-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-y: auto;
+}
+
+.frame-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 8px;
+  color: inherit;
+}
+
+.frame-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.frame-item-num {
+  font-size: 12px;
+  color: var(--color-gray-40, #999);
+  min-width: 16px;
+  text-align: right;
+  padding-top: 2px;
+}
+
+.frame-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.frame-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.frame-thumb svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.frame-item-name {
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* same invert trick as library thumbnails for dark mode */
+.excalidraw.theme--dark .frame-thumb svg {
+  filter: invert(93%) hue-rotate(180deg);
+}
+
+:root[data-theme="dark"] .frame-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .frame-thumb {
+  border-color: #33333b;
+}
+
+/* Unsaved-changes asterisk after the file name */
+.titlebar-dirty {
+  color: #e8590c;
+  font-size: 11px;
+  line-height: 0;
+  margin-left: 1px;
 }

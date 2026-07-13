@@ -10,6 +10,7 @@
     "core:window:allow-close",
     "core:window:allow-destroy",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-fullscreen",
     "dialog:default",
     "dialog:allow-save",
     "dialog:allow-open",
@@ -29,10 +30,12 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "**" },
-        { "path": "/**" },
         { "path": "$APPDATA" },
-        { "path": "$APPDATA/**" }
+        { "path": "$APPDATA/**" },
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOWNLOAD/**" }
       ]
     },
     "opener:default",

@@ -17,11 +17,24 @@
         "height": 800,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true
+        "decorations": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "worker-src": "'self' blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost https://libraries.excalidraw.com",
+        "frame-src": "https://www.youtube.com https://player.vimeo.com https://www.figma.com https://link.excalidraw.com https://*.simplepdf.eu https://stackblitz.com https://giphy.com",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'"
+      }
     }
   },
   "bundle": {
