@@ -1,0 +1,21 @@
+src-tauri/tauri.conf.json
+  s_cc9e1e864dc951::t_2c0bf8c123ce09 43
+THIRD-PARTY-NOTICES.md
+  s_cc9e1e864dc951::t_719d7bdcb9c241 1-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "92eff5efc2098ff5e076b0859c32df0c90046e2e",
+  "prompts": {},
+  "sessions": {
+    "s_cc9e1e864dc951": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99e43992-0c0f-433d-9784-fc82b2264fbc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
