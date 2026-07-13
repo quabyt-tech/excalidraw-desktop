@@ -132,7 +132,7 @@ function ThemeToggle({ theme, onToggleTheme }: { theme: "light" | "dark"; onTogg
 }
 
 export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, dirty, autosave, onToggleAutosave, onToggleSidebar, onToggleMenu, onPresent }: TitlebarProps) {
-  const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : null;
+  const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : "Untitled";
   const title = (
     <>
       Excalidraw Desktop
@@ -155,7 +155,7 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
           {title}
         </div>
         <div className="titlebar-actions">
-          <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
+          {currentFile && <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />}
           <PresentButton onPresent={onPresent} />
           <SaveButton onSave={onSave} dirty={dirty} />
           <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
@@ -173,7 +173,7 @@ export default function Titlebar({ theme, onToggleTheme, currentFile, onSave, di
         {title}
       </div>
       <div className="titlebar-buttons">
-        <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />
+        {currentFile && <AutosaveToggle on={autosave} onToggle={onToggleAutosave} />}
         <PresentButton onPresent={onPresent} />
         <SaveButton onSave={onSave} dirty={dirty} />
         <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />

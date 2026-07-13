@@ -28,6 +28,7 @@ import {
   BaseDirectory,
 } from "@tauri-apps/plugin-fs";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { appDataDir } from "@tauri-apps/api/path";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import Titlebar from "./Titlebar";
 import {
@@ -69,6 +70,20 @@ interface WsNode {
   path: string;
   dir: boolean;
   children?: WsNode[];
+}
+
+// Template picker groups: top-level dirs are categories, root files go under "General"
+function tplGroups(nodes: WsNode[]) {
+  const flatten = (ns: WsNode[]): WsNode[] =>
+    ns.flatMap((n) => (n.dir ? flatten(n.children ?? []) : [n]));
+  const root = nodes.filter((n) => !n.dir);
+  return [
+    ...(root.length ? [{ name: "General", files: root }] : []),
+    ...nodes
+      .filter((n) => n.dir)
+      .map((d) => ({ name: d.name, files: flatten(d.children ?? []) }))
+      .filter((g) => g.files.length > 0),
+  ];
 }
 
 // ponytail: depth cap 4, hidden dirs skipped
@@ -333,6 +348,19 @@ export default function App() {
   // Drag-and-drop move (node in a ref: dataTransfer can't carry objects)
   const dragNodeRef = useRef<WsNode | null>(null);
   const [dropDir, setDropDir] = useState<string | null>(null);
+
+  // Templates: <appData>/templates, subfolders are categories
+  const [tplPicker, setTplPicker] = useState<WsNode[] | null>(null);
+  const tplDirRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!tplPicker) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTplPicker(null);
+    };
+    document.addEventListener("keydown", h, true);
+    return () => document.removeEventListener("keydown", h, true);
+  }, [tplPicker]);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -710,6 +738,69 @@ export default function App() {
 
   const handleSave = useCallback(() => doSave(false), [doSave]);
   const handleSaveAs = useCallback(() => doSave(true), [doSave]);
+
+  // ---- Templates
+  const templatesDir = async () => {
+    const dir = `${await appDataDir()}/templates`;
+    await mkdir(dir, { recursive: true });
+    tplDirRef.current = dir;
+    return dir;
+  };
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      const dir = await templatesDir();
+      const target = await save({
+        filters: [{ name: "Excalidraw", extensions: ["excalidraw"] }],
+        defaultPath: `${dir}/${baseName(currentFileRef.current ?? "Template.excalidraw")}`,
+      });
+      if (!target) return;
+      await writeTextFile(
+        target,
+        serializeAsJSON(api.getSceneElements(), api.getAppState(), api.getFiles(), "local")
+      );
+      api.setToast({
+        message: `Template saved: ${baseName(target).replace(/\.excalidraw$/, "")}`,
+        closable: true,
+      });
+    } catch (err) {
+      console.error("Save template failed:", err);
+      apiRef.current?.setToast({ message: `Save template failed: ${err}`, closable: true });
+    }
+  }, []);
+
+  const handleNewFromTemplate = useCallback(async () => {
+    if (!(await confirmDiscard("start from a template"))) return;
+    setTplPicker(await buildTree(await templatesDir()));
+  }, []);
+
+  const applyTemplate = async (path: string) => {
+    setTplPicker(null);
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      const content = await readTextFile(path);
+      const scene = await loadFromBlob(
+        new Blob([content], { type: "application/json" }),
+        api.getAppState(),
+        null
+      );
+      api.updateScene(scene);
+      if (scene.files) api.addFiles(Object.values(scene.files));
+      api.scrollToContent();
+      // A fresh unsaved copy: the template file itself is never the open file,
+      // and the content has no backing file yet, so it starts out dirty
+      setFile(null);
+      savedVersionRef.current = -1;
+      setDirty(true);
+      persistSettings({ lastFile: null });
+    } catch (err) {
+      console.error("Template load failed:", err);
+      api.setToast({ message: `Could not load template: ${err}`, closable: true });
+    }
+  };
 
   // ---- Autosave: save shortly after the scene becomes dirty (needs an open file)
   useEffect(() => {
@@ -1557,10 +1648,16 @@ export default function App() {
           >
             <MainMenu>
               <MainMenu.Item onSelect={() => setTimeout(handleNew, 100)}>New File</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleNewFromTemplate, 100)}>
+                New from Template...
+              </MainMenu.Item>
               <MainMenu.Item onSelect={() => setTimeout(handleOpen, 100)}>Open File...</MainMenu.Item>
               <MainMenu.Item onSelect={() => setTimeout(handleOpenFolder, 100)}>Open Folder...</MainMenu.Item>
               <MainMenu.Item onSelect={() => setTimeout(handleSave, 100)}>Save</MainMenu.Item>
               <MainMenu.Item onSelect={() => setTimeout(handleSaveAs, 100)}>Save As...</MainMenu.Item>
+              <MainMenu.Item onSelect={() => setTimeout(handleSaveAsTemplate, 100)}>
+                Save as Template...
+              </MainMenu.Item>
               {recentFiles.length > 0 && (
                 <MainMenu.ItemCustom className="recent-item-custom">
                   <RecentFlyout
@@ -1581,9 +1678,11 @@ export default function App() {
               <MainMenu.DefaultItems.SearchMenu />
               <MainMenu.DefaultItems.Help />
               <MainMenu.Separator />
-              <MainMenu.Item onSelect={toggleAutosave}>
-                {autosave ? "Autosave: On" : "Autosave: Off"}
-              </MainMenu.Item>
+              {!!currentFile && (
+                <MainMenu.Item onSelect={toggleAutosave}>
+                  {autosave ? "Autosave: On" : "Autosave: Off"}
+                </MainMenu.Item>
+              )}
               <MainMenu.DefaultItems.ChangeCanvasBackground />
             </MainMenu>
             <Sidebar name="libraries" docked={libDocked} onDock={setLibDocked}>
@@ -1696,6 +1795,43 @@ export default function App() {
           <button onClick={exitPresentation} title="Exit (Esc)">
             ×
           </button>
+        </div>
+      )}
+      {tplPicker && (
+        <div className="tpl-overlay" onClick={() => setTplPicker(null)}>
+          <div className="tpl-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="tpl-modal-title">
+              <span>New from Template</span>
+              <button
+                className="lib-header-btn"
+                title="Open templates folder"
+                onClick={() => revealItemInDir(tplDirRef.current)}
+              >
+                <FolderIcon open={false} />
+              </button>
+            </div>
+            {tplGroups(tplPicker).map((g) => (
+              <div key={g.name}>
+                <div className="tpl-cat">{g.name}</div>
+                {g.files.map((f) => (
+                  <button
+                    key={f.path}
+                    className="tpl-item"
+                    onClick={() => applyTemplate(f.path)}
+                  >
+                    <FileIcon />
+                    <span>{f.name.replace(/\.excalidraw$/, "")}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+            {tplGroups(tplPicker).length === 0 && (
+              <div className="tpl-empty">
+                No templates yet. Draw something and use "Save as Template...".
+                Subfolders of the templates folder become categories.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

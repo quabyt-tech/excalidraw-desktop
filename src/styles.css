@@ -320,6 +320,77 @@ body,
   font-weight: 600;
 }
 
+/* Template picker */
+.tpl-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.tpl-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: 340px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+}
+
+.tpl-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tpl-cat {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+  margin: 10px 0 4px;
+}
+
+.tpl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-size: 13px;
+}
+
+.tpl-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.tpl-empty {
+  color: #999;
+  padding: 8px 0;
+}
+
+:root[data-theme="dark"] .tpl-modal {
+  background: #232329;
+  color: #e3e3e8;
+}
+
+:root[data-theme="dark"] .tpl-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Drag-and-drop move targets */
 .workspace-file.drop-target,
 .workspace-list.drop-root {
