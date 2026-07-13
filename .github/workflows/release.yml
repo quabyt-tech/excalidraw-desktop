@@ -9,7 +9,38 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches tauri.conf.json version
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "v$VERSION" != "${{ github.ref_name }}" ]; then
+            echo "::error::Tag ${{ github.ref_name }} does not match tauri.conf.json version $VERSION — bump the version before tagging"
+            exit 1
+          fi
+
+      # Create the draft release once so the matrix jobs all upload to the
+      # same release instead of racing to create duplicate drafts.
+      - name: Create draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api "repos/${{ github.repository }}/releases" \
+            -f tag_name="${{ github.ref_name }}" \
+            -f name="Excalidraw Desktop ${{ github.ref_name }}" \
+            -f body="See the assets below to download and install." \
+            -F draft=true \
+            --jq .id)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -27,15 +58,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify tag matches tauri.conf.json version
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          if [ "v$VERSION" != "${{ github.ref_name }}" ]; then
-            echo "::error::Tag ${{ github.ref_name }} does not match tauri.conf.json version $VERSION — bump the version before tagging"
-            exit 1
-          fi
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -61,11 +83,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Excalidraw Desktop ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install."
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target ${{ matrix.target }}
 
   publish:
