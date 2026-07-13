@@ -1,0 +1,19 @@
+.github/workflows/release.yml
+  s_a8a4709fbfc175::t_45d998a8225a8e 90,99-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "bcc7bbd95c4aa2b1056e5314e2de950483075764",
+  "prompts": {},
+  "sessions": {
+    "s_a8a4709fbfc175": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "73f1da55-5f8c-4c16-806a-6594548097b8",
+        "model": "unknown"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
