@@ -1124,9 +1124,8 @@ export default function App() {
     const api = apiRef.current;
     const frame = api?.getSceneElements().find((el) => el.id === id);
     if (api && frame) {
+      // No fit option: center the frame and leave the user's zoom alone
       api.scrollToContent(frame, {
-        fitToViewport: true,
-        viewportZoomFactor: 0.85,
         animate: true,
         duration: 300,
       });
