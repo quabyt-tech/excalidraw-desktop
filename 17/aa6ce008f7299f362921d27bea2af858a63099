@@ -1,0 +1,27 @@
+src-tauri/tauri.conf.json
+  s_cc9e1e864dc951::t_854a199d178dfc 3
+src-tauri/Cargo.toml
+  s_cc9e1e864dc951::t_389e062d6819cf 3
+package.json
+  s_cc9e1e864dc951::t_15ea3af3de847a 4
+.github/workflows/release.yml
+  s_cc9e1e864dc951::t_998a66b2c84918 31-39
+src-tauri/Cargo.lock
+  s_cc9e1e864dc951::t_6dc29f37771316 991
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "17aa6ce008f7299f362921d27bea2af858a63099",
+  "prompts": {},
+  "sessions": {
+    "s_cc9e1e864dc951": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99e43992-0c0f-433d-9784-fc82b2264fbc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
