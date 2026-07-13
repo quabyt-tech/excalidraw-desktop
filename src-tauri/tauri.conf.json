@@ -40,6 +40,7 @@
   "bundle": {
     "active": true,
     "publisher": "Quabyt",
+    "resources": ["../THIRD-PARTY-NOTICES.md"],
     "createUpdaterArtifacts": true,
     "targets": ["nsis", "dmg", "app", "deb", "rpm", "appimage"],
     "icon": [
