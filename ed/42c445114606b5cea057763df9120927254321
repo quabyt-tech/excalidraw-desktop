@@ -1,0 +1,88 @@
+src-tauri/tauri.conf.json
+  s_cc9e1e864dc951::t_bb5229cf5a714d 20-21
+  s_cc9e1e864dc951::t_a9e62c444ece06 25-37
+src/App.tsx
+  s_bd67e8fc634d54::t_06b18286b724a2 1362
+  s_bd67e8fc634d54::t_ffec41ca499854 995
+  s_cc9e1e864dc951::t_b53d42af098ae9 619-620,624
+  s_bd67e8fc634d54::t_9f56811fd054bf 1508,1514-1517
+  s_bd67e8fc634d54::t_5d4c8d0c85871c 298-306
+  s_bd67e8fc634d54::t_03921b305497f3 1082,1091-1096
+  s_bd67e8fc634d54::t_ae3672db37753a 1004-1009
+  s_bd67e8fc634d54::t_03a3a99469ac91 1366
+  s_cc9e1e864dc951::t_be357cbb4967fa 1278-1281,1284-1303
+  s_bd67e8fc634d54::t_8ecbd03ccde2d9 293-297,307-309
+  s_cc9e1e864dc951::t_a75c7870c16a34 333-336
+  s_bd67e8fc634d54::t_1582b209e65734 1067
+  s_bd67e8fc634d54::t_d42c831aaff575 1083-1085
+  s_cc9e1e864dc951::t_66ac40953d350f 1222-1224,1226-1229,1232-1251
+  s_bd67e8fc634d54::t_269e0759a8262d 1634-1673
+  s_bd67e8fc634d54::t_00bf1ebeb7ae34 1677-1700
+  s_bd67e8fc634d54::t_a77145efb65def 1351-1361,1363-1364
+  s_cc9e1e864dc951::t_222ddb7e768cba 1530-1531,1533-1536
+  s_bd67e8fc634d54::t_0fca2451c41f42 983
+  s_bd67e8fc634d54::t_4ed2621949d9e0 1012-1013,1015-1017,1021-1022
+  s_bd67e8fc634d54::t_081bc9e5d3fa1b 1576-1578
+  s_cc9e1e864dc951::t_65ca4e9b4c8631 618,902,910-952
+  s_cc9e1e864dc951::t_c22cafff6af903 1230-1231
+  s_bd67e8fc634d54::t_20386e55f3a2b1 6
+  s_bd67e8fc634d54::t_3280d225159436 1347-1350
+  s_bd67e8fc634d54::t_2bec624babded6 1532
+  s_cc9e1e864dc951::t_ab85b42602e0fe 1394-1413
+  s_bd67e8fc634d54::t_f2c66bff0dd7b5 1324
+  s_bd67e8fc634d54::t_8bf2fa3fe72a88 1014,1018-1020
+  s_cc9e1e864dc951::t_e3c8b824888bbc 1282-1283
+  s_bd67e8fc634d54::t_73e5e80eb18ef9 1523-1529
+  s_bd67e8fc634d54::t_d55afefe0ef78f 954,978-982,984-994,996-1003,1010-1011,1023-1044
+  s_bd67e8fc634d54::t_87f8e220917e28 12
+  s_bd67e8fc634d54::t_668434a3d6500e 607-608,611,613,615-616,953,1045-1066,1068-1081,1086-1090,1097-1135,1146-1149,1154
+  s_bd67e8fc634d54::t_c6812d27810531 192-201
+  s_bd67e8fc634d54::t_d33ca277a3dae3 1537-1540
+  s_bd67e8fc634d54::t_65380f919afcb8 1509-1513
+  s_bd67e8fc634d54::t_c26d955479c828 604-606
+  s_bd67e8fc634d54::t_74fdf4067c9641 609-610
+  s_bd67e8fc634d54::t_cfa25e7b3532a1 612
+  s_bd67e8fc634d54::t_850e1e9c72dcfa 955
+  s_cc9e1e864dc951::t_10c6cf29115054 588-592,602,617,847-848,857
+src/Titlebar.tsx
+  s_bd67e8fc634d54::t_72867acfa1268f 16
+  s_bd67e8fc634d54::t_ecaf63cecbcb8a 52-70,134,136-147,159,177
+src-tauri/capabilities/default.json
+  s_bd67e8fc634d54::t_34fd723a4e0f78 13,34-38
+src-tauri/src/lib.rs
+  s_fe5542b1f38c2f::t_a2dc4c364c2141 16-20,22-28
+src/styles.css
+  s_cc9e1e864dc951::t_ea0bf5756e92df 323-330,702-851
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ed42c445114606b5cea057763df9120927254321",
+  "prompts": {},
+  "sessions": {
+    "s_bd67e8fc634d54": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "68fd36ab-98ee-48a3-80f6-6cf49ee47037",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    },
+    "s_cc9e1e864dc951": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99e43992-0c0f-433d-9784-fc82b2264fbc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    },
+    "s_fe5542b1f38c2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d42426c-aa8a-41c5-b060-92ed15e2259a",
+        "model": "unknown"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
