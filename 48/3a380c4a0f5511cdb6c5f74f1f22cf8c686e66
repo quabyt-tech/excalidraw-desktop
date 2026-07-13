@@ -1,0 +1,40 @@
+src/App.tsx
+  s_cc9e1e864dc951::t_b1bf55cfdef901 745
+  s_cc9e1e864dc951::t_e3e2e0e42937e2 1800-1836
+  s_cc9e1e864dc951::t_d8de179d9f386e 31
+  s_cc9e1e864dc951::t_1d98e96ce7c63a 352-364
+  s_cc9e1e864dc951::t_af4a797622e1d8 1651-1653
+  s_cc9e1e864dc951::t_045babd4648763 75-88
+  s_cc9e1e864dc951::t_11992d89e8b1bf 742-744,746-792,795,798-804
+  s_cc9e1e864dc951::t_f80a116edf52e5 793-794,796-797
+  s_cc9e1e864dc951::t_e897c9cb10c492 1658-1660
+  s_cc9e1e864dc951::t_12586d1f7c2803 1681-1685
+src-tauri/tauri.conf.json
+  s_cc9e1e864dc951::t_f48e12382e8606 3
+package.json
+  s_cc9e1e864dc951::t_fc0650c719c00e 4
+src-tauri/Cargo.toml
+  s_cc9e1e864dc951::t_70bfff72ed4039 3
+src-tauri/Cargo.lock
+  s_cc9e1e864dc951::t_d3fbd637a45629 991
+src/Titlebar.tsx
+  s_cc9e1e864dc951::t_59a9308e4167f2 135,158,176
+src/styles.css
+  s_cc9e1e864dc951::t_143a9746714e1f 323-393
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "483a380c4a0f5511cdb6c5f74f1f22cf8c686e66",
+  "prompts": {},
+  "sessions": {
+    "s_cc9e1e864dc951": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99e43992-0c0f-433d-9784-fc82b2264fbc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
