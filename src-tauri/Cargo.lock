@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "excalidraw-desktop"
-version = "0.3.0"
+version = "0.3.7"
 dependencies = [
  "serde",
  "serde_json",

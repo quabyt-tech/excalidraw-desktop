@@ -1,6 +1,6 @@
 {
   "productName": "Excalidraw Desktop",
-  "version": "0.3.0",
+  "version": "0.3.7",
   "identifier": "com.quabyt.excalidraw-desktop",
   "build": {
     "frontendDist": "../dist",
