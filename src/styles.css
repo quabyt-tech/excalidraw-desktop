@@ -641,6 +641,37 @@ body,
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.lib-search-wrap {
+  padding: 4px 0 6px;
+}
+
+.lib-search {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--dialog-border-color, rgba(0, 0, 0, 0.16));
+  border-radius: 8px;
+  background: var(--input-bg-color, var(--island-bg-color, #fff));
+  color: var(--text-primary-color, #333);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 9px;
+  outline: none;
+}
+
+.lib-search:focus {
+  border-color: var(--color-primary, #6965db);
+  box-shadow: 0 0 0 1px var(--color-primary, #6965db);
+}
+
+.lib-search::placeholder {
+  color: var(--color-gray-40, #999);
+}
+
+.lib-no-results {
+  padding-top: 12px;
+  text-align: center;
+}
+
 .lib-section-header {
   display: flex;
   align-items: center;

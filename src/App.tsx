@@ -475,17 +475,24 @@ export default function App() {
         encodeURIComponent("excalidraw-desktop://library")
     );
 
-  const persistSettings = async (patch: Partial<Settings>) => {
-    settingsRef.current = { ...settingsRef.current, ...patch };
-    try {
-      await writeTextFile(
-        SETTINGS_FILE,
-        JSON.stringify(settingsRef.current, null, 2),
-        { baseDir: BaseDirectory.AppData }
-      );
-    } catch (err) {
+  const settingsWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const persistSettings = (patch: Partial<Settings>) => {
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+
+    // Serialize writes and capture each immutable snapshot. Without this, nearby
+    // updates (for example recents followed by lastFile) can finish out of order
+    // and an older settings snapshot can overwrite the newer one.
+    const write = settingsWriteQueueRef.current.then(() =>
+      writeTextFile(SETTINGS_FILE, JSON.stringify(next, null, 2), {
+        baseDir: BaseDirectory.AppData,
+      })
+    );
+    settingsWriteQueueRef.current = write.catch((err) => {
       console.error("Settings persist failed:", err);
-    }
+    });
+    return settingsWriteQueueRef.current;
   };
 
   const addRecent = (path: string) => {
@@ -1225,6 +1232,12 @@ export default function App() {
   // ---- Keyboard: Ctrl+S / Ctrl+Shift+S / F5 before Excalidraw sees them
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Keep canvas/tool shortcuts out of the library search field. This
+      // listener runs in capture phase, before Excalidraw handles the key.
+      if ((e.target as Element | null)?.closest?.(".lib-search")) {
+        e.stopImmediatePropagation();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         e.stopPropagation();

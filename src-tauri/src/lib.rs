@@ -51,7 +51,10 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
+        // The fs plugin must be registered first so dialog-granted paths can be
+        // restored before the frontend reopens the last document.
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![get_launch_file, move_to_trash])
         .setup(|app| {

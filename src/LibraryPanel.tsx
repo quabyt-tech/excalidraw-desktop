@@ -144,6 +144,55 @@ function Thumb({ item }: { item: LibraryItem }) {
   );
 }
 
+const itemSearchCache = new WeakMap<LibraryItem, string>();
+
+function itemSearchText(item: LibraryItem) {
+  const cached = itemSearchCache.get(item);
+  if (cached !== undefined) return cached;
+
+  const labels = item.elements.flatMap((element) =>
+    element.type === "text" ? [element.text, element.originalText] : []
+  );
+  const searchText = [item.name, ...labels]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLocaleLowerCase();
+  itemSearchCache.set(item, searchText);
+  return searchText;
+}
+
+function LibrarySearch({
+  onQueryChange,
+}: {
+  onQueryChange: (query: string) => void;
+}) {
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => onQueryChange(value), 150);
+    return () => window.clearTimeout(timer);
+  }, [value, onQueryChange]);
+
+  return (
+    <div
+      className="lib-search-wrap"
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
+    >
+      <input
+        className="lib-search"
+        type="search"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Search icons..."
+        aria-label="Search library icons"
+        autoComplete="off"
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
 export function LibraryPanel({
   sections,
   onToggleCollapse,
@@ -157,69 +206,96 @@ export function LibraryPanel({
   onRemoveItem: (sectionId: string, itemId: string) => void;
   onInsert: (item: LibraryItem) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleSections = sections
+    .map((section) => ({
+      section,
+      items: normalizedQuery
+        ? section.items.filter((item) =>
+            itemSearchText(item).includes(normalizedQuery)
+          )
+        : section.items,
+    }))
+    .filter(({ items }) => !normalizedQuery || items.length > 0);
+
   return (
     <div className="lib-panel">
-      {sections.map((s) => (
-        <div key={s.id} className="lib-section">
-          <div className="lib-section-header">
-            <button
-              className="lib-section-toggle"
-              onClick={() => onToggleCollapse(s.id)}
-            >
-              <span className="lib-caret">{s.collapsed ? "▸" : "▾"}</span>
-              <span className="lib-section-name">{s.name}</span>
-              <span className="lib-section-count">{s.items.length}</span>
-            </button>
-            {s.id !== PERSONAL_ID && (
+      <LibrarySearch onQueryChange={setQuery} />
+      {visibleSections.map(({ section: s, items }) => {
+        const collapsed = !normalizedQuery && s.collapsed;
+        return (
+          <div key={s.id} className="lib-section">
+            <div className="lib-section-header">
               <button
-                className="lib-x"
-                title={`Remove library "${s.name}"`}
-                onClick={() => onRemoveSection(s.id)}
+                className="lib-section-toggle"
+                onClick={() => onToggleCollapse(s.id)}
+                aria-expanded={!collapsed}
               >
-                ×
+                <span className="lib-caret">{collapsed ? "▸" : "▾"}</span>
+                <span className="lib-section-name">{s.name}</span>
+                <span className="lib-section-count">
+                  {normalizedQuery && items.length !== s.items.length
+                    ? `${items.length}/${s.items.length}`
+                    : items.length}
+                </span>
               </button>
-            )}
-          </div>
-          {!s.collapsed &&
-            (s.items.length ? (
-              <div className="lib-grid">
-                {s.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="lib-item"
-                    title={item.name || "Untitled"}
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData(
-                        MIME_TYPES.excalidrawlib,
-                        serializeLibraryAsJSON([item])
-                      )
-                    }
-                    onClick={() => onInsert(item)}
-                  >
-                    <Thumb item={item} />
-                    <button
-                      className="lib-x lib-item-x"
-                      title="Remove item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveItem(s.id, item.id);
-                      }}
+              {s.id !== PERSONAL_ID && (
+                <button
+                  className="lib-x"
+                  title={`Remove library "${s.name}"`}
+                  onClick={() => onRemoveSection(s.id)}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {!collapsed &&
+              (items.length ? (
+                <div className="lib-grid">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="lib-item"
+                      title={item.name || "Untitled"}
+                      draggable
+                      onDragStart={(e) =>
+                        e.dataTransfer.setData(
+                          MIME_TYPES.excalidrawlib,
+                          serializeLibraryAsJSON([item])
+                        )
+                      }
+                      onClick={() => onInsert(item)}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="lib-empty">
-                {s.id === PERSONAL_ID
-                  ? "Select shapes, right-click → Add to library"
-                  : "Empty library"}
-              </div>
-            ))}
+                      <Thumb item={item} />
+                      <button
+                        className="lib-x lib-item-x"
+                        title="Remove item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveItem(s.id, item.id);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="lib-empty">
+                  {s.id === PERSONAL_ID
+                    ? "Select shapes, right-click → Add to library"
+                    : "Empty library"}
+                </div>
+              ))}
+          </div>
+        );
+      })}
+      {normalizedQuery && visibleSections.length === 0 && (
+        <div className="lib-empty lib-no-results">
+          No icons match “{query.trim()}”
         </div>
-      ))}
+      )}
     </div>
   );
 }
