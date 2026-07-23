@@ -28,6 +28,60 @@ fn move_to_trash(path: String, workspace_root: String) -> Result<(), String> {
     trash::delete(&target).map_err(|e| e.to_string())
 }
 
+// ---- AI-provider API key storage in the OS keychain (Windows/macOS only).
+// On Linux these commands return an error and the frontend falls back to
+// localStorage. `provider` ("gemini"/"anthropic") is the keychain entry name.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+const KEYCHAIN_SERVICE: &str = "excalidraw-desktop";
+
+#[tauri::command]
+fn secret_load(provider: String) -> Result<Option<String>, String> {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        match keyring::Entry::new(KEYCHAIN_SERVICE, &provider).and_then(|e| e.get_password()) {
+            Ok(p) => Ok(Some(p)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = provider;
+        Err("keychain unavailable on this platform".into())
+    }
+}
+
+#[tauri::command]
+fn secret_store(provider: String, key: String) -> Result<(), String> {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        keyring::Entry::new(KEYCHAIN_SERVICE, &provider)
+            .and_then(|e| e.set_password(&key))
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = (provider, key);
+        Err("keychain unavailable on this platform".into())
+    }
+}
+
+#[tauri::command]
+fn secret_delete(provider: String) -> Result<(), String> {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        match keyring::Entry::new(KEYCHAIN_SERVICE, &provider).and_then(|e| e.delete_credential()) {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = provider;
+        Err("keychain unavailable on this platform".into())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -56,7 +110,13 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_launch_file, move_to_trash])
+        .invoke_handler(tauri::generate_handler![
+            get_launch_file,
+            move_to_trash,
+            secret_load,
+            secret_store,
+            secret_delete
+        ])
         .setup(|app| {
             // Ensure app data dir exists (library.json / settings.json live there)
             std::fs::create_dir_all(app.path().app_data_dir()?)?;

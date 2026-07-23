@@ -58,11 +58,12 @@ The AI Diagram feature calls a model provider (Google Gemini or Anthropic) using
   `api.anthropic.com`) plus Excalidraw's library CDN. Any attempt by app code or a
   dependency to send a key to a different host is blocked by the webview before the
   request leaves your computer.
-- **Keys are stored locally, in plain text.** They live in the app's `localStorage`
-  (per provider) so you don't have to re-enter them. This means anyone with access to
-  your user profile's app data on disk can read them. Treat provider API keys as
-  revocable secrets: prefer free / rate-limited keys (e.g. Google AI Studio), and
-  revoke and rotate a key if your machine may be compromised.
+- **Keys are stored in the OS keychain on Windows and macOS** (Windows Credential
+  Manager / macOS Keychain), so they are encrypted at rest and gated by the OS. On
+  **Linux** they fall back to the app's `localStorage` (plain text on disk), since the
+  keychain there would require a `libsecret` runtime dependency. Either way, treat
+  provider API keys as revocable secrets: prefer free / rate-limited keys (e.g. Google
+  AI Studio), and revoke and rotate a key if your machine may be compromised.
 - **No client app can protect a key on a fully compromised machine**, since the app
   must decrypt and use the key to make the request. The controls above defend against
   network exfiltration and casual access, not against malware already running as you.

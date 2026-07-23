@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Anthropic from "@anthropic-ai/sdk";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
@@ -18,6 +19,33 @@ const MODEL_STORAGE: Record<Provider, string> = {
   gemini: "geminiModel",
   anthropic: "anthropicModel",
 };
+
+// API keys live in the OS keychain (Windows/macOS) via Rust commands. On Linux
+// those commands error and we fall back to localStorage. loadKey also migrates
+// any pre-existing plaintext localStorage key into the keychain, once.
+async function loadKey(provider: Provider): Promise<string> {
+  try {
+    const v = await invoke<string | null>("secret_load", { provider });
+    if (v) return v;
+    const legacy = localStorage.getItem(KEY_STORAGE[provider]);
+    if (legacy) {
+      await invoke("secret_store", { provider, key: legacy });
+      localStorage.removeItem(KEY_STORAGE[provider]);
+      return legacy;
+    }
+    return "";
+  } catch {
+    return localStorage.getItem(KEY_STORAGE[provider]) ?? "";
+  }
+}
+
+async function saveKey(provider: Provider, key: string): Promise<void> {
+  try {
+    await invoke("secret_store", { provider, key });
+  } catch {
+    localStorage.setItem(KEY_STORAGE[provider], key);
+  }
+}
 
 // LLM writes Mermaid, the existing mermaid-to-excalidraw converter does the rest.
 // Only flowchart/sequence/class convert to editable shapes; anything else falls
@@ -120,9 +148,8 @@ export default function AiDraft({
 }) {
   // Always open on Gemini (the free default); key/model are still remembered per provider
   const [provider, setProvider] = useState<Provider>("gemini");
-  const [apiKey, setApiKey] = useState(
-    () => localStorage.getItem(KEY_STORAGE[provider]) ?? ""
-  );
+  // Key loads async from the keychain; model stays in localStorage (not secret)
+  const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState(
     () =>
       localStorage.getItem(MODEL_STORAGE[provider]) ?? DEFAULT_MODEL[provider]
@@ -130,6 +157,16 @@ export default function AiDraft({
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load the saved key for the current provider (keychain, localStorage on Linux).
+  // Guard against a stale async result overwriting a newer provider's key.
+  useEffect(() => {
+    let active = true;
+    loadKey(provider).then((k) => active && setApiKey(k));
+    return () => {
+      active = false;
+    };
+  }, [provider]);
 
   // Note: no outside-click or Escape close — only the Cancel button closes,
   // so users don't lose their prompt accidentally.
@@ -146,8 +183,7 @@ export default function AiDraft({
   };
 
   const switchProvider = (p: Provider) => {
-    setProvider(p);
-    setApiKey(localStorage.getItem(KEY_STORAGE[p]) ?? "");
+    setProvider(p); // the effect above reloads the key for the new provider
     setModel(localStorage.getItem(MODEL_STORAGE[p]) ?? DEFAULT_MODEL[p]);
   };
 
@@ -197,7 +233,7 @@ export default function AiDraft({
     const key = apiKey.trim();
     const modelId = model.trim() || DEFAULT_MODEL[provider];
     if (!key || !prompt.trim() || busy) return;
-    localStorage.setItem(KEY_STORAGE[provider], key);
+    await saveKey(provider, key);
     localStorage.setItem(MODEL_STORAGE[provider], modelId);
     setBusy(true);
     setError(null);
