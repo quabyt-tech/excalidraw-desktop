@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Excalidraw,
   MainMenu,
@@ -31,6 +32,7 @@ import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { appDataDir } from "@tauri-apps/api/path";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import Titlebar from "./Titlebar";
+import AiDraft from "./AiDraft";
 import {
   LibraryPanel,
   insertLibraryItem,
@@ -349,9 +351,40 @@ export default function App() {
   const dragNodeRef = useRef<WsNode | null>(null);
   const [dropDir, setDropDir] = useState<string | null>(null);
 
+  // AI draft: describe a diagram, get editable shapes via Mermaid.
+  // The trigger button is portaled into Excalidraw's undo/redo row (aiSlot).
+  const [aiDraft, setAiDraft] = useState(false);
+  const [aiSlot, setAiSlot] = useState<HTMLElement | null>(null);
+
   // Templates: <appData>/templates, subfolders are categories
   const [tplPicker, setTplPicker] = useState<WsNode[] | null>(null);
   const tplDirRef = useRef<string>("");
+
+  // Mount a portal slot inside Excalidraw's undo/redo row so our AI button
+  // sits inline after it. The row is re-rendered on some interactions, so
+  // re-attach whenever it loses our slot.
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+    const attach = () => {
+      // Sit inline right after the undo/redo island on the left, not at the
+      // end of the full-width bottom bar (that lands on the right).
+      const undoRedo = document.querySelector<HTMLElement>(
+        ".excalidraw .undo-redo-buttons"
+      );
+      if (!undoRedo) return;
+      // Already the immediate sibling? done. Guard is position-specific so a
+      // stale slot left elsewhere (e.g. by HMR) doesn't block re-placement.
+      if (undoRedo.nextElementSibling?.classList.contains("ai-slot")) return;
+      const slot = document.createElement("div");
+      slot.className = "ai-slot";
+      undoRedo.after(slot);
+      setAiSlot(slot);
+    };
+    attach();
+    const obs = new MutationObserver(attach);
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, [excalidrawAPI]);
 
   useEffect(() => {
     if (!tplPicker) return;
@@ -1715,6 +1748,9 @@ export default function App() {
                 </MainMenu.ItemCustom>
               )}
               <MainMenu.Separator />
+              <MainMenu.Item onSelect={() => setTimeout(() => setAiDraft(true), 100)}>
+                AI Diagram...
+              </MainMenu.Item>
               <MainMenu.Item onSelect={() => setTimeout(startPresentation, 100)}>
                 Present (F5)
               </MainMenu.Item>
@@ -1841,6 +1877,25 @@ export default function App() {
             ×
           </button>
         </div>
+      )}
+      {aiSlot &&
+        createPortal(
+          <button
+            className="ai-canvas-btn"
+            type="button"
+            title="AI Diagram"
+            aria-label="AI Diagram"
+            onClick={() => setAiDraft(true)}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l1.6 3.9L17.5 8.5 13.6 10 12 14l-1.6-4L6.5 8.5l3.9-1.6L12 3z" />
+              <path d="M18.5 14l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z" />
+            </svg>
+          </button>,
+          aiSlot
+        )}
+      {aiDraft && excalidrawAPI && (
+        <AiDraft api={excalidrawAPI} onClose={() => setAiDraft(false)} />
       )}
       {tplPicker && (
         <div className="tpl-overlay" onClick={() => setTplPicker(null)}>
