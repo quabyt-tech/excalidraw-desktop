@@ -16,33 +16,10 @@ No other dependencies needed, the app uses the OS webview (WebView2 on Windows i
 
 The full Excalidraw editor, plus everything a real desktop tool should do that a browser tab (or PWA) can't:
 
-### Work with real files
-
-- **Folder workspace**: open a folder and get a file-explorer sidebar with nested folders, inline create/rename, and right-click actions (rename, delete, reveal in file manager). Point it at a OneDrive/Dropbox/Google Drive folder and your drawings sync across machines.
-- **True save semantics**: Ctrl+S writes straight to the `.excalidraw` file, Ctrl+Shift+S for Save As. No downloads folder, no permission prompts.
-- **Autosave**: flip the titlebar toggle and changes are written a moment after you stop drawing.
-- **Never lose work**: unsaved-changes indicator, and a warning before closing, opening, or switching files would discard edits.
-- **File association**: double-click any `.excalidraw` file to open it in the app.
-- **Open Recent**: last 10 files, one hover away in the menu.
-- **Session restore**: reopens the file you were working on when you relaunch.
-- **External-edit detection**: if the open file changes on disk (git pull, cloud sync, another editor), the app reloads it, asking first if you have unsaved changes.
-- **Safe deletes**: sidebar deletes go to the OS recycle bin / trash.
-
-### Shape libraries, organized
-
-- **A section per library**: each imported library shows up under its own collapsible title (like draw.io's shape palette), instead of everything merging into one flat pile. Collapse the ones you're not using, remove a whole library with one click.
-- **One-click installs**: "Add to Excalidraw" on [libraries.excalidraw.com](https://libraries.excalidraw.com) opens straight in the app via deep link; grab AWS, Azure, GCP, and other shape packs from there and each lands as its own section. Re-importing a library updates it in place.
-- **Local imports**: load `.excalidrawlib` files from disk via the sidebar.
-- **Personal section**: select shapes on the canvas, right-click, "Add to library", and they land in your own section.
-- **Click or drag to insert**: click a shape to drop it at the center of the view, or drag it anywhere on the canvas.
-- **Persists across restarts**: your libraries are stored locally, and existing libraries migrate automatically.
-
-### Desktop-grade behavior
-
-- **Auto-update**: the app checks GitHub releases on startup and updates itself (signed packages).
-- **Preferences that stick**: theme, grid, zen mode, snapping, and canvas background survive restarts.
-- **Single instance**: relaunching focuses the existing window instead of opening a duplicate.
-- **Native touches**: custom titlebar, external links open in your default browser, tiny footprint compared to Electron (a few MB, using the OS webview).
+- **Real files**: a folder-workspace sidebar (nested folders, inline create/rename, right-click actions), true `Ctrl+S` save, autosave, Open Recent, session restore, file association, external-edit detection, and safe deletes to the OS trash.
+- **Organized shape libraries**: each imported library is its own collapsible section; one-click installs from [libraries.excalidraw.com](https://libraries.excalidraw.com), local `.excalidrawlib` imports, and a personal section for your own shapes.
+- **AI Diagram**: describe a diagram in plain words and drop editable shapes on the canvas, via Gemini (free AI Studio keys) or Anthropic. See [Security & API keys](#security--api-keys).
+- **Desktop-grade behavior**: self-updating (signed packages), persistent preferences, single-instance, custom titlebar, and a tiny footprint using the OS webview.
 - **Cross-platform**: Windows, macOS, and Linux.
 
 ## Developing
@@ -69,6 +46,28 @@ bun run tauri build
 ```
 
 The installer will be in `src-tauri/target/release/bundle/`.
+
+## Security & API keys
+
+The AI Diagram feature calls a model provider (Google Gemini or Anthropic) using
+**your own** API key. A few things to know about how that key is handled:
+
+- **Keys never leave your machine except to the provider.** The app ships a strict
+  Content-Security-Policy (`connect-src` in `src-tauri/tauri.conf.json`) that limits
+  all network requests to the provider endpoints (`generativelanguage.googleapis.com`,
+  `api.anthropic.com`) plus Excalidraw's library CDN. Any attempt by app code or a
+  dependency to send a key to a different host is blocked by the webview before the
+  request leaves your computer.
+- **Keys are stored locally, in plain text.** They live in the app's `localStorage`
+  (per provider) so you don't have to re-enter them. This means anyone with access to
+  your user profile's app data on disk can read them. Treat provider API keys as
+  revocable secrets: prefer free / rate-limited keys (e.g. Google AI Studio), and
+  revoke and rotate a key if your machine may be compromised.
+- **No client app can protect a key on a fully compromised machine**, since the app
+  must decrypt and use the key to make the request. The controls above defend against
+  network exfiltration and casual access, not against malware already running as you.
+
+To revoke a key: Google AI Studio → API keys, or the Anthropic Console → API keys.
 
 ## Contributing
 
