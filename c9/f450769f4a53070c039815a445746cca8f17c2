@@ -1,0 +1,20 @@
+README.md
+  s_288cbf5bf18560::t_f7d87cba35b31d 19-22
+  s_288cbf5bf18560::t_19f10e595683a7 50-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "c9f450769f4a53070c039815a445746cca8f17c2",
+  "prompts": {},
+  "sessions": {
+    "s_288cbf5bf18560": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e3a849b-0b2b-4b69-a5f7-b0ea33ca2494",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
