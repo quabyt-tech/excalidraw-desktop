@@ -1,0 +1,46 @@
+src-tauri/tauri.conf.json
+  s_a3a60f4f39ce5c::t_b342872cb75d12 3
+src-tauri/Cargo.toml
+  s_a3a60f4f39ce5c::t_a586a3923ad5ff 3
+src/App.tsx
+  s_288cbf5bf18560::t_e291fe954a367c 602-616
+  s_a3a60f4f39ce5c::t_7958c710cf4be2 1634-1652
+package.json
+  s_a3a60f4f39ce5c::t_d47d3c76242337 4
+src-tauri/Cargo.lock
+  s_cc9e1e864dc951::t_58e4ba56272659 1000
+src/styles.css
+  s_a3a60f4f39ce5c::t_f65dc0330c2937 954-975
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "0705fb525b823d257c147eb92cdc51da096a2180",
+  "prompts": {},
+  "sessions": {
+    "s_288cbf5bf18560": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e3a849b-0b2b-4b69-a5f7-b0ea33ca2494",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    },
+    "s_a3a60f4f39ce5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f0d34c5-71f9-4413-9ac6-282498c36ab3",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    },
+    "s_cc9e1e864dc951": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99e43992-0c0f-433d-9784-fc82b2264fbc",
+        "model": "unknown"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
