@@ -1,0 +1,38 @@
+package.json
+  s_288cbf5bf18560::t_a9282ad1c618b7 4
+src-tauri/tauri.conf.json
+  s_288cbf5bf18560::t_2005f60edd5346 3
+src/AiDraft.tsx
+  s_288cbf5bf18560::t_a726d47dfa07d9 1,4,23-48
+  s_288cbf5bf18560::t_401f22f66363e7 151-152,161-169
+  s_288cbf5bf18560::t_c0413f53256865 186
+  s_288cbf5bf18560::t_02644760b4ce1b 236
+  s_288cbf5bf18560::t_64fbc3081bf1a4 49
+  s_288cbf5bf18560::t_d61a85c0be4a8a 170
+src-tauri/Cargo.toml
+  s_288cbf5bf18560::t_d184aea3488f4e 28-33
+  s_288cbf5bf18560::t_ba0db6e409eb6b 3
+src-tauri/src/lib.rs
+  s_288cbf5bf18560::t_885cdbdc947a5c 113-119
+  s_288cbf5bf18560::t_6ea9e4c763eea5 31-84
+README.md
+  s_288cbf5bf18560::t_4a0bddec2ecb0d 61-66
+src-tauri/Cargo.lock
+  s_288cbf5bf18560::t_cbcda6ef9f2564 538-547,571,584,1010,1012,2095-2108,3438,3456,3465,3569-3581,3589,4075
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "496b79e4340ba1a0bf35a472ad63fa7052390629",
+  "prompts": {},
+  "sessions": {
+    "s_288cbf5bf18560": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e3a849b-0b2b-4b69-a5f7-b0ea33ca2494",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
