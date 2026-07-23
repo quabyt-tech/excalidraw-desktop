@@ -951,3 +951,25 @@ body,
   line-height: 0;
   margin-left: 1px;
 }
+
+/* Move the zoom/undo-redo row (and the scroll-to-content-back button, the
+   other occupant of this bar) from the bottom of the canvas to the top,
+   level with the shape toolbar, instead of overlapping drawing space. */
+.excalidraw .App-menu_bottom {
+  top: 8px;
+  bottom: auto;
+}
+
+/* That relocated row now sits where the left-side properties panel (stroke,
+   font, etc.) used to start, so push the panel down to clear it. */
+.excalidraw .App-menu_top__left {
+  margin-top: 20px;
+}
+
+/* The default help button lives in this same bar and would land back on
+   top of the Frames/Library triggers at the top-right; a lookalike button
+   next to Frames/Library (see renderTopRightUI in App.tsx) replaces it
+   in-place, forwarding clicks to this hidden original. */
+.excalidraw .layer-ui__wrapper__footer-right .help-icon {
+  display: none;
+}

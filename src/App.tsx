@@ -599,7 +599,21 @@ export default function App() {
       pendingOpenRef.current ?? (await invoke<string | null>("get_launch_file"));
     pendingOpenRef.current = null;
     const restore = launchFile ?? settings.lastFile;
-    if (restore && (await exists(restore))) loadFile(restore);
+    if (restore && (await exists(restore))) {
+      // Reveal the file in the sidebar: expand its ancestor folders
+      if (settings.workspaceDir) {
+        const ws = normPath(settings.workspaceDir);
+        const rel = normPath(restore);
+        if (rel.startsWith(ws + "/")) {
+          const dirs: string[] = [];
+          let p = settings.workspaceDir;
+          for (const seg of rel.slice(ws.length + 1).split("/").slice(0, -1))
+            dirs.push((p = `${p}/${seg}`));
+          if (dirs.length) setExpandedDirs((prev) => new Set([...prev, ...dirs]));
+        }
+      }
+      loadFile(restore);
+    }
   }, [loadFile, refreshWorkspace]);
 
   // ---- Warn before closing with unsaved changes (covers titlebar X, Alt+F4)
@@ -1617,6 +1631,25 @@ export default function App() {
                 <Sidebar.Trigger name="libraries" title="Libraries">
                   Library
                 </Sidebar.Trigger>
+                <button
+                  className="help-icon"
+                  type="button"
+                  title="Help — ?"
+                  aria-label="Help"
+                  onClick={() =>
+                    document
+                      .querySelector<HTMLElement>(
+                        ".layer-ui__wrapper__footer-right .help-icon"
+                      )
+                      ?.click()
+                  }
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </button>
               </>
             )}
             theme={theme}
