@@ -1,0 +1,45 @@
+README.md
+  s_f9018abbbb44f8::t_24658760fb90bc 21
+src/styles.css
+  s_f9018abbbb44f8::t_57a02b99758e59 1202-1203
+  s_f9018abbbb44f8::t_3ebaa55e356652 904-915
+  s_f9018abbbb44f8::t_72db42620e1334 505-512
+src/App.tsx
+  s_f9018abbbb44f8::t_d6ebd39bf3bfd0 1129-1130
+  s_f9018abbbb44f8::t_7fbe30486eee52 1191-1192,1218-1221
+  s_f9018abbbb44f8::t_7bd55fed6dc31f 1193
+  s_f9018abbbb44f8::t_f3934fba2ab646 1183-1190,1202,1217,1222-1229
+  s_f9018abbbb44f8::t_481b80051fd213 1194-1201
+  s_f9018abbbb44f8::t_a4d6c7fe73fa34 1181-1182
+  s_f9018abbbb44f8::t_f992b9f79be9f5 1203-1216
+  s_f9018abbbb44f8::t_ebd5f8ed404e66 1821-1825
+  s_f9018abbbb44f8::t_77503a5da14ada 1890,1895,1899,1907,1915,1921,1925
+  s_f9018abbbb44f8::t_f31f0daff61e7e 1887-1889,1891-1894,1896-1898,1900-1902,1906,1908-1910,1913-1914,1916-1920,1922-1924,1926-1928
+  s_f9018abbbb44f8::t_a9e6cb62596ba1 17
+  s_f9018abbbb44f8::t_cecf1f58beb603 210,212
+  s_f9018abbbb44f8::t_b15ad7d88a6f93 716-721
+package.json
+  s_f9018abbbb44f8::t_8414289c7983b6 4
+src-tauri/Cargo.toml
+  s_f9018abbbb44f8::t_8414289c7983b6 3
+src-tauri/tauri.conf.json
+  s_f9018abbbb44f8::t_8414289c7983b6 3
+src-tauri/Cargo.lock
+  s_f9018abbbb44f8::t_7692801a8405d9 1010
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "fa352d0cf8851702df5541ef77d2457066dbb1ee",
+  "prompts": {},
+  "sessions": {
+    "s_f9018abbbb44f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d514bf2f-4f52-44c1-a369-5b5268a1dbed",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
