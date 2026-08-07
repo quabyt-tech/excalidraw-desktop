@@ -1,0 +1,29 @@
+package.json
+  s_448176bdd3519c::t_0507a6db789eb4 4
+src-tauri/Cargo.toml
+  s_448176bdd3519c::t_0507a6db789eb4 3
+src-tauri/tauri.windows.conf.json
+  s_448176bdd3519c::t_f92d04d6d93ba9 1-17
+src/App.tsx
+  s_448176bdd3519c::t_76ec79cbe30134 1359-1371
+src-tauri/tauri.conf.json
+  s_448176bdd3519c::t_0507a6db789eb4 3
+src-tauri/Cargo.lock
+  s_448176bdd3519c::t_709ac3e6fff6ce 1010
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0aa045c7c39c44a243784576ee93bf8623a070d3",
+  "prompts": {},
+  "sessions": {
+    "s_448176bdd3519c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5079f7a4-aa6c-4e96-a947-ec283a43eb2c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pushpendra Singh <ps@quabyt.com>"
+    }
+  }
+}
